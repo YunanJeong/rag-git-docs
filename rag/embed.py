@@ -3,7 +3,7 @@
 dense 와 sparse 를 한 번의 추론으로 함께 낸다.
 - dense  : 1024개 실수로 된 의미 좌표. 표현이 달라도 뜻이 같으면 가까이 놓인다.
 - sparse : 단어 하나가 축 하나인 희소 벡터. 고유명사·에러코드처럼 정확히 일치해야
-           하는 토큰을 잡는다. dense 는 kr-mum 과 kr-sum 을 구별하지 못한다.
+           하는 토큰을 잡는다. dense 는 한 글자만 다른 사내 식별자를 구별하지 못한다.
 """
 
 from __future__ import annotations
