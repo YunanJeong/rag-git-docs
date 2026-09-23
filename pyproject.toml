@@ -1,0 +1,20 @@
+[project]
+name = "docs-rag-vector-db"
+version = "0.1.0"
+description = "로컬 마크다운을 벡터 DB 에 색인하고 자연어로 관련 조각을 찾는 최소 RAG 파이프라인"
+requires-python = ">=3.11"
+dependencies = [
+    "FlagEmbedding==1.4.2",
+    "qdrant-client==1.19.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
