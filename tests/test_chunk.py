@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from rag.chunk import chunk_markdown  # noqa: E402
+from vectordb.chunk import chunk_markdown  # noqa: E402
 
 SAMPLES = Path(__file__).resolve().parent / "sample-docs"
 
