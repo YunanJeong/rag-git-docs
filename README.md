@@ -15,7 +15,7 @@ RAG(Retrieval-Augmented Generation)는 LLM 에게 질문을 던질 때 관련 �
 ## 필요한 것
 
 - [uv](https://docs.astral.sh/uv/)
-- Docker
+- Docker, 또는 Helm 이 붙는 k3s 클러스터 (Qdrant 를 띄울 곳)
 - 토큰 — GitLab 이면 그룹 액세스 토큰 (스코프 `read_api` + `read_repository`),
   GitHub 이면 PAT (공개 리포만 볼 거면 스코프는 없어도 된다)
 - 디스크 5GB (임베딩 모델 bge-m3 를 최초 실행 시 내려받는다)
@@ -32,7 +32,7 @@ uv sync
 # 2. 수집 (SOURCE → DOCS_DIR)
 uv run collect.py
 
-# 3. Qdrant 기동
+# 3. Qdrant 기동 (k3s 에 올릴 거면 아래 "k3s 에 Qdrant 올리기")
 docker run -d --name rag-qdrant -p 6333:6333 -v qdrant_storage:/qdrant/storage qdrant/qdrant
 
 # 4. 색인 (문서를 쪼개 → 숫자로 바꿔 → DB 에 넣는다)
@@ -61,6 +61,42 @@ uv run search.py "특정 리전 코드" --top-k 3
 
 수집 상태를 완전히 초기화하려면 `DOCS_DIR` 을 통째로 지우면 된다. 다음 실행이 전량 재수집이다.
 
+### k3s 에 Qdrant 올리기
+
+차트는 새로 만들지 않고 Qdrant 공식 차트를 쓴다. 이 레포에는 넘길 값
+(`deploy/qdrant/values.yaml`)만 있다.
+
+```bash
+# 1. API 키 Secret 을 먼저 만든다. 값은 직접 정한다
+kubectl create namespace qdrant
+kubectl -n qdrant create secret generic qdrant-api-key --from-literal=api-key="$QDRANT_API_KEY"
+
+# 2. 공식 차트로 설치
+helm repo add qdrant https://qdrant.github.io/qdrant-helm
+helm install rag-qdrant qdrant/qdrant -n qdrant -f deploy/qdrant/values.yaml
+
+# 3. 색인·검색 쪽 .env 를 클러스터로 돌린다
+#    QDRANT_URL=http://<노드 IP>:30633
+#    QDRANT_API_KEY=<1번에서 넣은 값>
+```
+
+**Secret 이 설치보다 먼저다.** 차트는 `helm install` 시점에 Secret 을 읽어 키를
+설정에 넣는다. 그때 Secret 이 없으면 설치는 오류 없이 끝나지만 **키가 꺼진 채로 뜬다.**
+
+values 에서 바꾼 것은 셋이다.
+
+| 키 | 값 | 이유 |
+|---|---|---|
+| `service.type` | `NodePort` (http 는 `30633`) | 색인·검색이 클러스터 밖에서 돌기 때문 |
+| `persistence.storageClassName` | `local-path` | k3s 기본 스토리지 클래스. 노드 디스크에 저장된다 |
+| `apiKey.valueFrom` | Secret `qdrant-api-key` | 키를 저장소에 커밋하지 않는다 |
+
+`service.ports` 는 목록이라 일부만 덮으면 나머지 포트가 사라진다. 그래서 values 에
+세 포트를 전부 적었다.
+
+`local-path` 는 노드 디스크를 쓰므로 **노드를 지우면 색인도 사라진다.** 다만 색인은
+언제든 `index.py` 로 다시 만들 수 있어서, 이 프로젝트에서는 잃어도 되는 데이터다.
+
 ### 테스트
 
 ```bash
@@ -78,6 +114,13 @@ docker volume rm qdrant_storage  # 색인 데이터까지 삭제
 rm -rf "$DOCS_DIR"               # 수집한 문서와 manifest 삭제
 ```
 
+k3s 에 올렸다면:
+
+```bash
+helm uninstall rag-qdrant -n qdrant   # 파드·서비스 삭제 (볼륨은 남음)
+kubectl delete namespace qdrant       # 볼륨·Secret 까지 삭제
+```
+
 ## 환경변수
 
 | 변수 | 기본값 | 용도 |
@@ -85,7 +128,8 @@ rm -rf "$DOCS_DIR"               # 수집한 문서와 manifest 삭제
 | `SOURCE` | `gitlab` | 어디서 모을지. `gitlab` \| `github` |
 | `EXCLUDE_REPOS` | (없음) | 제외할 리포. 쉼표로 구분 |
 | `DOCS_DIR` | (필수) | **수집 대상이자 색인 대상.** collect 가 쓰고 index 가 읽는다 |
-| `QDRANT_URL` | `http://localhost:6333` | 원격 Qdrant 를 쓸 때 이 값만 바꾼다 |
+| `QDRANT_URL` | `http://localhost:6333` | k3s 면 `http://<노드 IP>:30633` |
+| `QDRANT_API_KEY` | (없음) | 서버에 키를 켰을 때만. 비우면 키 없이 붙는다 |
 | `QDRANT_COLLECTION` | `docs` | |
 | `EMBED_MODEL` | `BAAI/bge-m3` | 색인과 검색이 같아야 한다 |
 | `TOP_K` | `5` | 검색 결과 개수 |
@@ -133,6 +177,7 @@ sources  ↔  collector  ↔  rag        서로 모른다
 | `collector/` | 받을 것·지울 것을 정하고 디스크에 반영 | 경로와 SHA 뿐. 어느 소스에서 왔는지 모른다 |
 | `rag/` | md → 조각 → 벡터 → 검색 | 문서 파일과 Qdrant 뿐. 수집을 모른다 |
 | `infra/` | EC2 인스턴스 IaC | (별도 테라폼 모듈을 여기에 둔다) |
+| `deploy/` | 클러스터에 올릴 것의 설정값 | Qdrant 공식 Helm 차트에 넘길 values 뿐 |
 
 | 파일 | 하는 일 |
 |---|---|

@@ -39,8 +39,16 @@ def _to_sparse(weights: dict[int, float]) -> models.SparseVector:
 
 class Store:
     def __init__(self, url: str | None = None, collection: str | None = None) -> None:
+        """QDRANT_API_KEY 는 서버에 키를 켰을 때만 넣는다.
+
+        키를 켠 서버에 키 없이 붙으면 401 로 거부된다. 로컬 docker 처럼 키가 없는
+        서버에는 비워 두면 되고, 빈 문자열은 None 으로 바꿔 헤더를 아예 안 보낸다.
+        """
         self.collection = collection or os.environ.get("QDRANT_COLLECTION", "docs")
-        self.client = QdrantClient(url=url or os.environ.get("QDRANT_URL", "http://localhost:6333"))
+        self.client = QdrantClient(
+            url=url or os.environ.get("QDRANT_URL", "http://localhost:6333"),
+            api_key=os.environ.get("QDRANT_API_KEY") or None,
+        )
 
     def recreate_collection(self, dim: int = 1024) -> None:
         """있으면 지우고 새로 만든다.

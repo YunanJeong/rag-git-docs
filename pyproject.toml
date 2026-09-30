@@ -5,6 +5,7 @@ description = "git 호스팅의 문서를 모아 벡터 DB 로 검색하는 RAG 
 requires-python = ">=3.11"
 dependencies = [
     "FlagEmbedding==1.4.2",
+    "mcp==2.2.0",
     "qdrant-client==1.19.1",
 ]
 

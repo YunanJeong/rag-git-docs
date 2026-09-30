@@ -1,0 +1,45 @@
+# Qdrant 공식 Helm 차트(qdrant/qdrant)에 넘기는 값이다.
+# 차트 기본값과 다른 것만 적는다.
+# 단일 노드 k3s 를 기준으로 한다.
+
+# ports 는 목록이라 일부만 적으면 나머지가 사라진다.
+# 그래서 차트 기본값 세 개를 모두 적고 http 에만 nodePort 를 붙인다.
+# NodePort 는 노드의 IP 와 지정한 포트로 클러스터 밖에서 서비스에 붙게 한다.
+# 색인과 검색은 클러스터 밖 호스트에서 돌기 때문에 이 경로가 필요하다.
+# nodePort 는 30000 에서 32767 사이 값만 쓸 수 있다.
+service:
+  type: NodePort
+  ports:
+    - name: http
+      port: 6333
+      targetPort: 6333
+      nodePort: 30633
+      protocol: TCP
+      checksEnabled: true
+    - name: grpc
+      port: 6334
+      targetPort: 6334
+      protocol: TCP
+      checksEnabled: false
+    - name: p2p
+      port: 6335
+      targetPort: 6335
+      protocol: TCP
+      checksEnabled: false
+
+# local-path 는 k3s 에 기본으로 들어 있는 스토리지 클래스다.
+# 노드 디스크의 디렉터리를 볼륨으로 쓰므로 파드가 다시 떠도 데이터가 남는다.
+# 노드 자체를 지우면 데이터도 함께 사라진다.
+persistence:
+  storageClassName: local-path
+
+# API 키는 values 파일에 적지 않고 미리 만든 Secret 에서 읽는다.
+# values 파일은 저장소에 커밋되지만 Secret 은 클러스터 안에만 있기 때문이다.
+# 차트는 helm install 을 실행하는 시점에 이 Secret 의 값을 읽어 설정에 넣는다.
+# 그 시점에 Secret 이 없으면 helm install 은 오류 없이 끝나지만 키 설정이 만들어지지 않는다.
+# 그래서 Secret 을 먼저 만들고 나서 helm install 을 실행해야 한다.
+apiKey:
+  valueFrom:
+    secretKeyRef:
+      name: qdrant-api-key
+      key: api-key
