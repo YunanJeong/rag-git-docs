@@ -62,7 +62,7 @@ kubectl -n rag logs -f job/sync-now
 kubectl -n rag delete job sync-now    # 같은 이름으로 다시 만들려면 지운다
 ```
 
-## Claude Code 에 붙이기
+## Claude Code 와 연동하기
 
 검색 서버는 NodePort 로 EC2 의 `30876` 포트에 열린다. EC2 보안그룹에서 이 포트를 내 IP 에만 연다.
 요청마다 `secret-values.yaml` 에 넣은 `SERVE_TOKEN` 을 확인한다.
@@ -73,6 +73,21 @@ claude mcp add --transport http --scope user git-docs http://<EC2 주소>:30876/
 ```
 
 검색 서버 토큰과 검색 내용이 평문 HTTP 로 오간다. 보안그룹을 넓게 열 거면 앞에 TLS 를 둔다.
+
+### 왜 Qdrant 에 바로 붙지 않고 검색 서버를 거치나
+
+- Qdrant 는 질문 텍스트가 아니라 벡터를 받는다
+- 그 벡터는 색인 때와 같은 모델(bge-m3)로 만들어야 하는데, Claude Code 는 그 모델을 돌리지 못한다
+- 그래서 검색 서버가 모델을 띄워 두고, 질문을 벡터로 바꿔 Qdrant 에 묻는다
+- MCP 는 Claude Code 가 이런 서버를 도구로 불러 쓰게 하는 표준 규약이다
+
+### 왜 Qdrant 공식 MCP 서버(mcp-server-qdrant)를 쓰지 않나
+
+- 공식 서버는 bge-m3 를 쓸 수 없다. 색인과 다른 모델로 질문을 벡터로 바꾸면 비교가 안 된다
+- 공식 서버는 dense 검색은 되지만 sparse 검색은 안 된다
+  - dense 는 뜻으로 찾기 때문에 표현이 달라도 같은 내용을 찾아 준다 (다른 표현이어도 유사의미면 유사벡터값을 가짐)
+  - 하지만 region-a1 과 region-a2 처럼 생김새도 뜻도 비슷한 단어는 같은 것으로 본다
+  - sparse 는 단어 자체를 비교해서 이 둘을 구분한다
 
 ## 로컬에서 돌리기
 
