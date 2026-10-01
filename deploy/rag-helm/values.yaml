@@ -1,11 +1,19 @@
-# 레지스트리 없이 k3s 노드에 직접 넣은 이미지를 쓴다.
-image: rag-git-docs:latest
+image:
+  repository: docker.wai/yunan/rag-git-docs
+  tag: "0.1.0"
+  # 비공개 레지스트리면 imagePullSecret 이름
+  pullSecret: ""
+
+# 검색 서버를 노드 IP 의 이 포트로 연다. 30000 에서 32767 사이 값만 쓸 수 있다.
+# EC2 보안그룹에서 이 포트를 내 IP 에만 연다.
+serve:
+  nodePort: 30876
 
 # 수집과 색인을 도는 시각이다. 시간대는 k3s 노드를 따른다.
 schedule: "0 3 * * *"
 
 # Qdrant 를 릴리스 이름 rag-qdrant 로 설치했다고 가정한다.
-# 서비스 이름과 API 키 Secret 이름이 그 릴리스 이름에서 나온다.
+# Qdrant 서비스 이름과 Qdrant API 키 Secret 이름이 그 릴리스 이름에서 나온다.
 qdrant:
   url: http://rag-qdrant:6333
   apiKeySecret: rag-qdrant-apikey
@@ -22,6 +30,6 @@ env:
   GITLAB_GROUP: ""
   GITHUB_OWNER: ""
 
-# 토큰은 여기 적지 않는다.
+# GitLab·GitHub 토큰과 검색 서버 토큰은 여기 적지 않는다.
 # secret-values.yaml 에 적어 helm install 에 -f 로 함께 넘긴다.
 secretEnv: {}

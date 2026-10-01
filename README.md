@@ -38,37 +38,41 @@ rag-git-docs/
 `serve.py` 는 `indexer/` 의 `embed.py` 와 `store.py` 를 가져다 쓴다. 질문을 문서와 비교하려면
 색인 때와 같은 모델로 질문도 벡터로 바꿔야 하고, 색인과 같은 Qdrant 컬렉션을 읽어야 하기 때문이다.
 
-## k3s 에 올리기
+## 배포
 
 ```bash
-# 1. Qdrant. API 키 Secret(rag-qdrant-apikey)도 차트가 만든다
-helm repo add qdrant https://qdrant.github.io/qdrant-helm
-helm install rag-qdrant qdrant/qdrant -n qdrant --create-namespace -f deploy/qdrant-helm/values.yaml
+# 이미지
+docker build -t docker.wai/yunan/rag-git-docs:0.1.0 . && docker push docker.wai/yunan/rag-git-docs:0.1.0
 
-# 2. 이미지를 k3s 에 넣는다
-docker build -t rag-git-docs:latest .
-docker save rag-git-docs:latest | sudo k3s ctr images import -
+# Qdrant 먼저. 이 차트가 만드는 서비스와 Qdrant API 키 Secret 을 rag-git-docs 가 이름으로 찾으므로 같은 네임스페이스에 둔다
+helm install rag-qdrant qdrant/qdrant -n rag --create-namespace -f deploy/qdrant-helm/values.yaml
 
-# 3. 앱. values.yaml 에 그룹 이름을, secret-values.yaml 에 토큰을 채운다
+# 앱. 예시 파일을 복사해 비밀값을 채우고 설치할 때 함께 넘긴다 (복사한 파일은 git 에서 제외됨)
 cp deploy/rag-helm/secret-values.example.yaml deploy/rag-helm/secret-values.yaml
-helm install rag-git-docs deploy/rag-helm -n qdrant -f deploy/rag-helm/secret-values.yaml
+helm install rag-git-docs deploy/rag-helm -n rag -f deploy/rag-helm/secret-values.yaml
 ```
 
-수집과 색인은 매일 03:00 에 처음 돈다. 그 전까지는 검색 결과가 없다.
-`secret-values.yaml` 은 커밋되지 않는다.
+### 수집·색인을 지금 한 번 돌리기
+
+설치 직후처럼 03:00 를 기다릴 수 없을 때 CronJob 의 설정 그대로 Job 을 하나 만든다.
+
+```bash
+kubectl -n rag create job --from=cronjob/rag-git-docs-sync sync-now
+kubectl -n rag logs -f job/sync-now
+kubectl -n rag delete job sync-now    # 같은 이름으로 다시 만들려면 지운다
+```
 
 ## Claude Code 에 붙이기
 
-검색 서버는 인증이 없어서 클러스터 밖에 열지 않는다. 터널로 붙는다.
+검색 서버는 NodePort 로 EC2 의 `30876` 포트에 열린다. EC2 보안그룹에서 이 포트를 내 IP 에만 연다.
+요청마다 `secret-values.yaml` 에 넣은 `SERVE_TOKEN` 을 확인한다.
 
 ```bash
-# 서버에서
-kubectl -n qdrant port-forward svc/rag-git-docs-serve 8765:8765
-
-# 내 PC 에서
-ssh -N -L 8765:localhost:8765 <서버>
-claude mcp add --transport http --scope user git-docs http://localhost:8765/mcp
+claude mcp add --transport http --scope user git-docs http://<EC2 주소>:30876/mcp \
+  --header "Authorization: Bearer <SERVE_TOKEN>"
 ```
+
+검색 서버 토큰과 검색 내용이 평문 HTTP 로 오간다. 보안그룹을 넓게 열 거면 앞에 TLS 를 둔다.
 
 ## 로컬에서 돌리기
 
@@ -76,5 +80,5 @@ claude mcp add --transport http --scope user git-docs http://localhost:8765/mcp
 cp .env.example .env && set -a && . ./.env && set +a
 uv sync
 docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
-uv run collect.py && uv run index.py && uv run serve.py
+uv run collect.py && uv run index.py && uv run serve.py    # http://localhost:8765/mcp
 ```

@@ -33,7 +33,7 @@ service:
 persistence:
   storageClassName: local-path
 
-# API 키를 차트가 만들어 rag-qdrant-apikey Secret 에 둔다.
+# Qdrant API 키를 차트가 만들어 rag-qdrant-apikey Secret 에 둔다.
 # 이미 있으면 그 값을 다시 쓰므로 helm upgrade 를 해도 키가 바뀌지 않는다.
-# 앱은 같은 Secret 에서 키를 읽는다.
+# 앱은 같은 Secret 에서 Qdrant API 키를 읽는다.
 apiKey: true
