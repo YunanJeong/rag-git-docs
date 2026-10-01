@@ -1,0 +1,17 @@
+# 수집과 색인을 매일 정해진 시각에 실행한다.
+# 타이머는 이름이 같은 .service 파일을 부른다.
+#
+# 설치 위치는 /etc/systemd/system/ 이다.
+
+[Unit]
+Description=rag-git-docs daily collect and index
+
+[Timer]
+# 매일 새벽 3시에 돈다.
+OnCalendar=*-*-* 03:00:00
+
+# 예정 시각에 서버가 꺼져 있었으면 켜진 직후 한 번 돈다.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

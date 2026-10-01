@@ -1,0 +1,26 @@
+# 검색 서버(serve.py)를 계속 띄워 둔다.
+# 모델을 한 번 올려 두고 계속 쓰므로 프로세스가 죽으면 다시 띄운다.
+#
+# 설치 위치는 /etc/systemd/system/ 이다.
+# User, WorkingDirectory, uv 경로는 서버의 실제 값으로 바꿔 쓴다.
+
+[Unit]
+Description=rag-git-docs search MCP server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/rag-git-docs
+EnvironmentFile=/opt/rag-git-docs/.env
+
+# systemd 는 로그인 셸의 PATH 를 읽지 않으므로 uv 를 절대경로로 부른다.
+ExecStart=/home/ubuntu/.local/bin/uv run --frozen serve.py
+
+# Qdrant 가 아직 안 떴을 때 죽으면 10초 뒤 다시 시도한다.
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

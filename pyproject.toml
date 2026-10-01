@@ -1,7 +1,7 @@
 [project]
 name = "rag-git-docs"
 version = "0.1.0"
-description = "git 호스팅의 문서를 모아 색인하고 MCP 로 에이전트에 검색을 제공하는 RAG 파이프라인"
+description = "GitLab·GitHub 문서를 Qdrant 에 색인하고 MCP 로 검색한다"
 requires-python = ">=3.11"
 dependencies = [
     "FlagEmbedding==1.4.2",

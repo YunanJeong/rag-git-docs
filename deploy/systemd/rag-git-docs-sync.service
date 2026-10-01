@@ -1,0 +1,27 @@
+# 수집(collect.py)과 색인(index.py)을 차례로 한 번 돌고 끝난다.
+# 이름이 같은 .timer 파일이 정해진 시각에 이 서비스를 부른다.
+#
+# 설치 위치는 /etc/systemd/system/ 이다.
+# User, WorkingDirectory, uv 경로는 서버의 실제 값으로 바꿔 쓴다.
+
+[Unit]
+Description=rag-git-docs collect and index
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# oneshot 은 ExecStart 를 위에서부터 차례로 돌리고, 모두 끝나야 서비스를 끝난 것으로 본다.
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/rag-git-docs
+
+# 토큰이 든 .env 를 읽는다. 이 파일은 저장소에 커밋하지 않는다.
+EnvironmentFile=/opt/rag-git-docs/.env
+
+# systemd 는 로그인 셸의 PATH 를 읽지 않으므로 uv 를 절대경로로 부른다.
+# 위치는 command -v uv 로 확인한다.
+# collect.py 는 리포 하나만 실패해도 종료 코드 1 로 끝난다.
+# 앞에 붙인 - 는 그 실패를 무시하고 색인을 이어서 돌리게 한다.
+# 실패한 리포는 옛 파일이 남아 있어 그대로 색인된다.
+ExecStart=-/home/ubuntu/.local/bin/uv run --frozen collect.py
+ExecStart=/home/ubuntu/.local/bin/uv run --frozen index.py

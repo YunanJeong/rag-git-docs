@@ -1,7 +1,3 @@
-"""문서가 날아가는 자리라 여기를 제일 두껍게 본다.
-
-manifest 는 import 가 하나도 없는 순수 함수라 네트워크도 디스크도 없이 전부 돈다.
-"""
 
 import sys
 from pathlib import Path
