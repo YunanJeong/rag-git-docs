@@ -11,7 +11,7 @@ from pathlib import Path
 
 from collector.files import delete_doc, load_manifest, save_manifest, write_doc
 from collector.manifest import changed, deleted, vanished
-from sources import github, gitlab
+from collector.sources import github, gitlab
 
 SOURCES = {"gitlab": gitlab, "github": github}
 

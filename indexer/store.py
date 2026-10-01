@@ -1,7 +1,8 @@
-"""Qdrant 에 넣고 찾는다.
+"""조각과 벡터를 Qdrant 에 넣는다.
 
-검색은 별칭 docs 로 한다. 색인할 때는 새 컬렉션을 따로 채운 뒤 별칭만 옮긴다.
-그래서 색인하는 동안에도 검색은 옛 색인으로 돌고, 색인이 실패해도 옛 색인이 남는다.
+검색하는 쪽(serve.py)은 컬렉션 대신 별칭 docs 로 조회한다. 색인은 새 컬렉션을 따로
+채운 뒤 별칭만 옮긴다. 그래서 색인하는 동안에도 검색은 옛 색인으로 돌고,
+색인이 실패해도 옛 색인이 남는다.
 """
 
 from __future__ import annotations
@@ -50,17 +51,3 @@ def replace(db: QdrantClient, texts: list[str], vectors: list[dict]) -> str:
         if c.name.startswith(f"{ALIAS}_") and c.name != name:
             db.delete_collection(c.name)
     return name
-
-
-def search(db: QdrantClient, vector: dict, limit: int = 5) -> list[str]:
-    hits = db.query_points(
-        ALIAS,
-        prefetch=[
-            models.Prefetch(query=vector["dense"], using="dense", limit=20),
-            models.Prefetch(query=vector["sparse"], using="sparse", limit=20),
-        ],
-        # dense 와 sparse 결과의 순위를 합친다
-        query=models.FusionQuery(fusion=models.Fusion.RRF),
-        limit=limit,
-    ).points
-    return [h.payload["text"] for h in hits]

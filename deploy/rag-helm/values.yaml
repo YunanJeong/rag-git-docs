@@ -1,0 +1,27 @@
+# 레지스트리 없이 k3s 노드에 직접 넣은 이미지를 쓴다.
+image: rag-git-docs:latest
+
+# 수집과 색인을 도는 시각이다. 시간대는 k3s 노드를 따른다.
+schedule: "0 3 * * *"
+
+# Qdrant 를 릴리스 이름 rag-qdrant 로 설치했다고 가정한다.
+# 서비스 이름과 API 키 Secret 이름이 그 릴리스 이름에서 나온다.
+qdrant:
+  url: http://rag-qdrant:6333
+  apiKeySecret: rag-qdrant-apikey
+
+# 수집한 md 와 bge-m3 모델 캐시를 둘 볼륨 크기다.
+storage:
+  docs: 5Gi
+  model: 5Gi
+
+# collect.py 가 읽는 값 가운데 비밀이 아닌 것이다.
+env:
+  SOURCE: gitlab
+  GITLAB_URL: https://gitlab.com
+  GITLAB_GROUP: ""
+  GITHUB_OWNER: ""
+
+# 토큰은 여기 적지 않는다.
+# secret-values.yaml 에 적어 helm install 에 -f 로 함께 넘긴다.
+secretEnv: {}

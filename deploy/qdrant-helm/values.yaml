@@ -33,13 +33,7 @@ service:
 persistence:
   storageClassName: local-path
 
-# API 키는 values 파일에 적지 않고 미리 만든 Secret 에서 읽는다.
-# values 파일은 저장소에 커밋되지만 Secret 은 클러스터 안에만 있기 때문이다.
-# 차트는 helm install 을 실행하는 시점에 이 Secret 의 값을 읽어 설정에 넣는다.
-# 그 시점에 Secret 이 없으면 helm install 은 오류 없이 끝나지만 키 설정이 만들어지지 않는다.
-# 그래서 Secret 을 먼저 만들고 나서 helm install 을 실행해야 한다.
-apiKey:
-  valueFrom:
-    secretKeyRef:
-      name: qdrant-api-key
-      key: api-key
+# API 키를 차트가 만들어 rag-qdrant-apikey Secret 에 둔다.
+# 이미 있으면 그 값을 다시 쓰므로 helm upgrade 를 해도 키가 바뀌지 않는다.
+# 앱은 같은 Secret 에서 키를 읽는다.
+apiKey: true

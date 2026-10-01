@@ -6,8 +6,8 @@ import json
 import os
 import urllib.parse
 
-from sources._http import get, get_pages
-from sources.types import Repo, md_files
+from collector.sources._http import get, get_pages
+from collector.sources.types import Repo, md_files
 
 
 def _api() -> tuple[str, dict[str, str]]:

@@ -1,0 +1,52 @@
+# serve.py 를 계속 띄워 둔다. 죽으면 k8s 가 다시 띄운다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-serve
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-serve
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-serve
+    spec:
+      containers:
+        - name: serve
+          image: {{ .Values.image }}
+          imagePullPolicy: Never
+          command: ["python", "serve.py"]
+          env:
+            # 0.0.0.0 으로 받아야 Service 가 파드에 닿는다.
+            - name: SERVE_HOST
+              value: "0.0.0.0"
+            - name: QDRANT_URL
+              value: {{ .Values.qdrant.url }}
+            - name: QDRANT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.qdrant.apiKeySecret }}
+                  key: api-key
+          ports:
+            - containerPort: 8765
+          volumeMounts:
+            - name: model
+              mountPath: /cache/hf
+      volumes:
+        - name: model
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-model
+---
+# 인증이 없으므로 클러스터 안에서만 보인다. 밖에서는 kubectl port-forward 로 붙는다.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-serve
+spec:
+  selector:
+    app: {{ .Release.Name }}-serve
+  ports:
+    - port: 8765
+      targetPort: 8765

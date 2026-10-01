@@ -1,0 +1,6 @@
+# 토큰이 든 .env 가 이미지에 들어가지 않게 한다.
+.env
+.venv
+.git
+**/__pycache__
+.pytest_cache
