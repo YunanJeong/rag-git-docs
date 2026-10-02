@@ -7,6 +7,8 @@ dependencies = [
     "FlagEmbedding==1.4.2",
     "mcp==2.2.0",
     "qdrant-client==1.19.1",
+    # FlagEmbedding 이 끌어오는 의존성이지만 CPU 빌드를 받도록 직접 적는다.
+    "torch==2.14.0",
 ]
 
 [dependency-groups]
@@ -16,6 +18,17 @@ dev = [
 
 [tool.uv]
 package = false
+
+# PyPI 의 리눅스용 torch 는 GPU 빌드라 CUDA 라이브러리(약 4GB)가 함께 설치된다.
+# 배포 서버에 GPU 가 없으므로 PyTorch 의 CPU 전용 저장소에서 받는다.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+# explicit 이면 torch 처럼 위에서 지정한 패키지만 이 저장소에서 받는다.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
