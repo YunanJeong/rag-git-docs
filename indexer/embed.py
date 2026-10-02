@@ -22,7 +22,9 @@ class Embedder:
 
     def encode(self, texts: list[str]) -> list[dict]:
         with self.lock:
-            out = self.model.encode(texts, return_dense=True, return_sparse=True)
+            # 기본 배치는 256 이라, 긴 조각이 섞이면 중간 계산값이 수 GB 로 커져 OOM 이 난다.
+            # CPU 추론은 배치를 키워도 빨라지지 않으므로 작게 둔다.
+            out = self.model.encode(texts, batch_size=8, return_dense=True, return_sparse=True)
         return [
             {
                 "dense": d.tolist(),
