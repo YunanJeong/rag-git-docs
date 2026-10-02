@@ -1,0 +1,112 @@
+# serve.py 를 계속 띄워 둔다. 죽으면 k8s 가 다시 띄운다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rag.fullname" . }}-serve
+  labels:
+    {{- include "rag.labels" . | nindent 4 }}
+    app.kubernetes.io/component: serve
+spec:
+  replicas: {{ .Values.serve.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rag.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: serve
+  template:
+    metadata:
+      labels:
+        {{- include "rag.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: serve
+      {{- if or (not .Values.existingSecret) .Values.serve.podAnnotations }}
+      annotations:
+        {{- if not .Values.existingSecret }}
+        # 차트가 만든 토큰 Secret 이 바뀌면 파드를 다시 띄워 새 값을 읽게 한다
+        checksum/secret: {{ .Values.secretEnv | toJson | sha256sum }}
+        {{- end }}
+        {{- with .Values.serve.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: serve
+          image: {{ include "rag.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "serve.py"]
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "rag.secretName" . }}
+          env:
+            {{- include "rag.qdrantEnv" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8765
+          {{- with .Values.serve.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.serve.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.serve.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.serve.resources | nindent 12 }}
+          volumeMounts:
+            - name: model
+              mountPath: /cache/hf
+      volumes:
+        - name: model
+          persistentVolumeClaim:
+            claimName: {{ include "rag.fullname" . }}-model
+      {{- with .Values.serve.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.serve.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.serve.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rag.fullname" . }}-serve
+  labels:
+    {{- include "rag.labels" . | nindent 4 }}
+    app.kubernetes.io/component: serve
+  {{- with .Values.serve.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.serve.service.type }}
+  selector:
+    {{- include "rag.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: serve
+  ports:
+    - name: http
+      port: {{ .Values.serve.service.port }}
+      targetPort: http
+      {{- if and (eq .Values.serve.service.type "NodePort") .Values.serve.service.nodePort }}
+      nodePort: {{ .Values.serve.service.nodePort }}
+      {{- end }}

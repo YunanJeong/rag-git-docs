@@ -1,0 +1,109 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: rag-git-docs
+  # 비우면 Chart.yaml 의 appVersion 을 쓴다
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# 이 차트는 Qdrant 를 설치하지 않는다. 따로 띄운 Qdrant 의 주소와 API 키 Secret 을 적는다.
+qdrant:
+  url: http://qdrant:6333
+  # Qdrant API 키가 든 Secret. name 을 비우면 키 없이 붙는다
+  apiKeySecret:
+    name: ""
+    key: api-key
+
+# GitLab·GitHub 토큰과 검색 서버 토큰이 든 Secret.
+# 비워 두면 secretEnv 로 차트가 만들고, 이미 있는 Secret 을 쓰려면 그 이름을 적는다.
+existingSecret: ""
+secretEnv: {}
+
+# 검색 서버 (Deployment + Service)
+serve:
+  replicaCount: 1
+
+  service:
+    type: ClusterIP
+    port: 8765
+    # type 이 NodePort 일 때만 쓴다. 비우면 k8s 가 30000-32767 중에서 고른다
+    nodePort: ""
+    annotations: {}
+
+  resources:
+    # bge-m3 를 올리면 약 2.5GB 를 쓴다
+    requests:
+      cpu: 500m
+      memory: 3Gi
+    limits:
+      memory: 4Gi
+
+  # 모델을 올린 뒤에야 포트를 열므로, 포트가 열리면 검색할 준비가 된 것이다.
+  # 모델 캐시가 비어 있으면 첫 기동에 모델(2.3GB)부터 받으므로 startupProbe 를 넉넉히 준다.
+  startupProbe:
+    tcpSocket:
+      port: http
+    periodSeconds: 10
+    failureThreshold: 60
+  readinessProbe:
+    tcpSocket:
+      port: http
+    periodSeconds: 10
+  livenessProbe:
+    tcpSocket:
+      port: http
+    periodSeconds: 30
+    failureThreshold: 3
+
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# 수집·색인 (CronJob)
+sync:
+  # 시간대는 timeZone 을 따른다. 비우면 kube-controller-manager 의 시간대
+  schedule: "0 3 * * *"
+  timeZone: ""
+  suspend: false
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  # collect.py 가 읽는 값 가운데 비밀이 아닌 것
+  env:
+    SOURCE: gitlab
+    GITLAB_URL: https://gitlab.com
+    GITLAB_GROUP: ""
+    GITHUB_OWNER: ""
+
+  resources:
+    # 색인할 때 모델과 조각 배치를 함께 올린다. 검색 서버보다 넉넉히 준다
+    requests:
+      cpu: "1"
+      memory: 3Gi
+    limits:
+      memory: 6Gi
+
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# 볼륨은 ReadWriteOnce 다. 검색 서버와 수집·색인이 모델 볼륨을 함께 마운트하므로
+# 두 파드가 같은 노드에 떠야 한다. 단일 노드면 상관없다.
+# helm uninstall 해도 볼륨은 남는다. 완전히 지우려면 PVC 를 따로 지운다.
+persistence:
+  # 비우면 클러스터 기본 스토리지 클래스를 쓴다
+  storageClass: ""
+  # 수집한 md 와 .manifest.json
+  docs:
+    size: 5Gi
+  # bge-m3 모델 캐시. 검색 서버와 수집·색인이 함께 쓴다
+  model:
+    size: 5Gi
+
+podSecurityContext: {}
+securityContext: {}

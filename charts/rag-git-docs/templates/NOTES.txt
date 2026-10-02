@@ -1,0 +1,9 @@
+{{- if and (not .Values.existingSecret) (not .Values.secretEnv.SERVE_TOKEN) }}
+경고: secretEnv.SERVE_TOKEN 이 비어 있다. 검색 서버는 이 토큰 없이는 뜨지 않는다.
+값을 채운 values 파일을 helm upgrade 에 -f 로 넘기거나, existingSecret 에 Secret 이름을 적는다.
+{{ end }}
+검색 서버: {{ include "rag.fullname" . }}-serve ({{ .Values.serve.service.type }}{{ if eq .Values.serve.service.type "NodePort" }}, 노드 포트 {{ .Values.serve.service.nodePort }}{{ end }})
+수집·색인: {{ include "rag.fullname" . }}-sync (CronJob, "{{ .Values.sync.schedule }}")
+
+지금 바로 수집·색인을 한 번 돌리려면:
+  kubectl -n {{ .Release.Namespace }} create job --from=cronjob/{{ include "rag.fullname" . }}-sync sync-now

@@ -1,0 +1,26 @@
+# rag-git-docs 차트 기본값 위에 덮어쓰는, 이 환경의 값이다.
+
+image:
+  repository: docker.wai/yunan/rag-git-docs
+
+# 같은 네임스페이스에 Qdrant 를 릴리스 이름 rag-qdrant 로 설치했다.
+# 서비스 이름과 Qdrant API 키 Secret 이름이 그 릴리스 이름에서 나온다.
+qdrant:
+  url: http://rag-qdrant:6333
+  apiKeySecret:
+    name: rag-qdrant-apikey
+
+# EC2 보안그룹에서 이 포트를 내 IP 에만 연다.
+serve:
+  service:
+    type: NodePort
+    nodePort: 30876
+
+sync:
+  timeZone: Asia/Seoul
+  env:
+    GITLAB_GROUP: ""
+
+# k3s 기본 스토리지 클래스. 노드 디스크에 저장된다
+persistence:
+  storageClass: local-path

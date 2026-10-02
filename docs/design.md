@@ -327,16 +327,22 @@ Qdrant 의 NodePort(30633)는 남겨 둔다. 앱은 클러스터 안에서 Servi
 쓰지 않지만, 로컬에서 `index.py` 를 직접 돌려 볼 때 쓴다.
 
 **k8s 에 올리는 것은 전부 Helm 차트로 한다.** Qdrant 는 공식 차트에 values 만 넘기고,
-앱은 `deploy/rag-helm/` 차트로 띄운다. `kubectl create` 같은 명령으로 만든 리소스는
+앱은 `charts/rag-git-docs/` 차트로 띄운다. `kubectl create` 같은 명령으로 만든 리소스는
 무엇을 만들었는지 파일에 남지 않고, 날 매니페스트를 apply 하면 지울 때 무엇이 함께
 만들어졌는지 추적하기 어렵다. 차트면 `helm uninstall` 한 번으로 정리된다.
+
+**차트 소스와 배포는 나눈다.** `charts/rag-git-docs/values.yaml` 은 차트의 기본값이자
+규격이다. 어디에 설치해도 맞는 일반적인 값만 두고, 이 환경의 값(이미지 주소, NodePort,
+스토리지 클래스, Qdrant 주소)은 넣지 않는다. 이 환경의 값은 `deploy/rag-git-docs.values.yaml`
+에 두고 설치할 때 `-f` 로 덮는다. Qdrant 도 같은 방식이라, 배포 쪽에서는 두 차트 모두
+"패키지(`deploy/packages/*.tgz`) + 덮어쓸 values" 로 똑같이 다룬다.
 
 Secret 도 따로 만들지 않는다.
 - Qdrant API 키는 Qdrant 차트가 `apiKey: true` 로 만들어 `rag-qdrant-apikey` 에 둔다.
   이미 있으면 그 값을 다시 쓰므로 `helm upgrade` 를 해도 Qdrant API 키가 바뀌지 않는다.
   앱 차트는 같은 Secret 에서 Qdrant API 키를 읽는다.
 - GitLab 토큰은 앱 차트가 `secretEnv` 값으로 Secret 을 만든다. 토큰은
-  `secret-values.yaml` 에 적어 `-f` 로 넘기고, 그 파일은 `.gitignore` 에 넣는다.
+  `deploy/rag-git-docs.secret.yaml` 에 적어 `-f` 로 넘기고, 그 파일은 `.gitignore` 에 넣는다.
 
 이미지 하나로 세 진입점을 다 돌린다. 무엇을 돌릴지는 템플릿의 `command` 가 정한다.
 

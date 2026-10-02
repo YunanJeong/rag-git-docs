@@ -27,9 +27,13 @@ rag-git-docs/
 │   ├── embed.py          조각을 임베딩 모델 bge-m3 로 벡터로 바꾼다
 │   └── store.py          벡터를 Qdrant 에 넣는다. 색인하는 동안에도 검색이 끊기지 않게 한다
 │
-├── deploy/
-│   ├── qdrant-helm/      Qdrant 공식 Helm 차트에 넘길 설정값
-│   └── rag-helm/         1·2·3 을 k3s 에 띄우는 Helm 차트. 1·2 는 CronJob, 3 은 Deployment
+├── charts/
+│   └── rag-git-docs/     1·2·3 을 띄우는 Helm 차트 소스. 1·2 는 CronJob, 3 은 Deployment. values.yaml 은 기본값
+├── deploy/               이 환경(EC2 k3s)에 배포하는 것
+│   ├── packages/         설치할 차트 패키지. rag-git-docs 는 helm package 로 만들고, Qdrant 는 공식에서 받는다
+│   ├── qdrant.values.yaml           Qdrant 차트 기본값 위에 덮어쓰는 이 환경의 값
+│   ├── rag-git-docs.values.yaml     rag-git-docs 차트 기본값 위에 덮어쓰는 이 환경의 값
+│   └── rag-git-docs.secret.example.yaml   토큰 자리. 복사본은 git 에서 제외
 ├── infra/                서버 테라폼 (예정)
 ├── tests/                지울 파일 판정과 md 자르기 테스트
 └── docs/design.md        왜 이렇게 만들었는지에 대한 기록. 코드를 고치기 전에 읽는다
@@ -44,12 +48,16 @@ rag-git-docs/
 # 이미지
 docker build -t private.docker.wai/yunan/rag-git-docs:0.1.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.1.0
 
+# 차트 패키지. 차트 소스를 고쳤으면 Chart.yaml 의 version 을 올리고 다시 만든다
+helm package charts/rag-git-docs -d deploy/packages
+
 # Qdrant 먼저. 이 차트가 만드는 서비스와 Qdrant API 키 Secret 을 rag-git-docs 가 이름으로 찾으므로 같은 네임스페이스에 둔다
-helm install rag-qdrant qdrant/qdrant -n rag --create-namespace -f deploy/qdrant-helm/values.yaml
+helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag --create-namespace -f deploy/qdrant.values.yaml
 
 # 앱. 예시 파일을 복사해 비밀값을 채우고 설치할 때 함께 넘긴다 (복사한 파일은 git 에서 제외됨)
-cp deploy/rag-helm/secret-values.example.yaml deploy/rag-helm/secret-values.yaml
-helm install rag-git-docs deploy/rag-helm -n rag -f deploy/rag-helm/secret-values.yaml
+cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml
+helm install rag-git-docs deploy/packages/rag-git-docs-0.1.0.tgz -n rag \
+  -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
 ### 수집·색인을 지금 한 번 돌리기
@@ -65,7 +73,7 @@ kubectl -n rag delete job sync-now    # 같은 이름으로 다시 만들려면 
 ## Claude Code 와 연동하기
 
 검색 서버는 NodePort 로 EC2 의 `30876` 포트에 열린다. EC2 보안그룹에서 이 포트를 내 IP 에만 연다.
-요청마다 `secret-values.yaml` 에 넣은 `SERVE_TOKEN` 을 확인한다.
+요청마다 `rag-git-docs.secret.yaml` 에 넣은 `SERVE_TOKEN` 을 확인한다.
 
 ```bash
 claude mcp add --transport http --scope user git-docs http://<EC2 주소>:30876/mcp \
