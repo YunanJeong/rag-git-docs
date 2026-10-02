@@ -1,40 +1,51 @@
+# rag-git-docs 차트의 기본값이다.
+# 설치할 환경마다 다른 값은 여기를 고치지 않고, 별도 values 파일을 helm install 에 -f 로 넘겨 덮어쓴다.
+
+# 리소스 이름을 바꿀 때 쓴다. 비우면 차트 이름과 릴리스 이름으로 정해진다.
 nameOverride: ""
 fullnameOverride: ""
 
+# 검색 서버와 수집·색인이 함께 쓰는 이미지다.
 image:
   repository: rag-git-docs
-  # 비우면 Chart.yaml 의 appVersion 을 쓴다
+  # 비우면 Chart.yaml 의 appVersion 을 쓴다.
   tag: ""
   pullPolicy: IfNotPresent
 
+# 비공개 레지스트리에서 받을 때 로그인 정보가 든 Secret 이름이다. 예: [{name: regcred}]
 imagePullSecrets: []
 
-# 이 차트는 Qdrant 를 설치하지 않는다. 따로 띄운 Qdrant 의 주소와 API 키 Secret 을 적는다.
+# 이 차트는 Qdrant 를 설치하지 않는다. 따로 띄운 Qdrant 에 붙는다.
 qdrant:
+  # Qdrant HTTP 주소다.
   url: http://qdrant:6333
-  # Qdrant API 키가 든 Secret. name 을 비우면 키 없이 붙는다
+  # Qdrant API 키가 든 Secret 이다. name 을 비우면 키 없이 붙는다.
   apiKeySecret:
     name: ""
     key: api-key
 
-# GitLab·GitHub 토큰과 검색 서버 토큰이 든 Secret.
-# 비워 두면 secretEnv 로 차트가 만들고, 이미 있는 Secret 을 쓰려면 그 이름을 적는다.
+# 토큰 세 가지(검색 서버 토큰, GitLab 토큰, GitHub 토큰)를 담을 Secret 이다.
+# existingSecret 을 비워 두면 차트가 secretEnv 의 값으로 Secret 을 만든다.
+# 이미 만들어 둔 Secret 을 쓰려면 existingSecret 에 그 이름을 적는다.
 existingSecret: ""
+# 예: {SERVE_TOKEN: ..., GITLAB_TOKEN: ...}
+# SERVE_TOKEN 이 없으면 검색 서버가 뜨지 않는다.
 secretEnv: {}
 
-# 검색 서버 (Deployment + Service)
+# 검색 서버(serve.py). Claude Code 가 MCP 로 붙어 문서를 검색한다.
 serve:
   replicaCount: 1
 
   service:
+    # 클러스터 밖에서 붙으려면 NodePort 나 LoadBalancer 로 바꾼다.
     type: ClusterIP
     port: 8765
-    # type 이 NodePort 일 때만 쓴다. 비우면 k8s 가 30000-32767 중에서 고른다
+    # type 이 NodePort 일 때만 쓴다. 비우면 k8s 가 30000-32767 중에서 고른다.
     nodePort: ""
     annotations: {}
 
   resources:
-    # bge-m3 를 올리면 약 2.5GB 를 쓴다
+    # bge-m3 를 올리면 약 2.5GB 를 쓴다.
     requests:
       cpu: 500m
       memory: 3Gi
@@ -63,24 +74,30 @@ serve:
   tolerations: []
   affinity: {}
 
-# 수집·색인 (CronJob)
+# 수집·색인(CronJob). 정해진 시각에 collect.py 로 리포의 md 를 받고, 이어서 index.py 로 Qdrant 에 넣는다.
 sync:
-  # 시간대는 timeZone 을 따른다. 비우면 kube-controller-manager 의 시간대
+  # cron 형식이다. 기본은 매일 03:00.
   schedule: "0 3 * * *"
+  # schedule 을 계산할 시간대다. 예: Asia/Seoul. 비우면 클러스터 시간대를 따르는데, 보통 UTC 다.
   timeZone: ""
+  # true 면 예약 실행을 멈춘다.
   suspend: false
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
 
-  # collect.py 가 읽는 값 가운데 비밀이 아닌 것
+  # collect.py 가 읽는 값 가운데 비밀이 아닌 것이다. 토큰은 secretEnv 에 둔다.
   env:
+    # 문서를 받아 올 곳이다. gitlab 또는 github.
     SOURCE: gitlab
+    # GitLab 주소다. 사내 설치형이면 그 주소로 바꾼다.
     GITLAB_URL: https://gitlab.com
+    # 수집할 GitLab 그룹 경로다. 그룹 주소에서 호스트 뒤 부분이다. 예: mycompany/platform. 하위 그룹까지 수집한다.
     GITLAB_GROUP: ""
+    # SOURCE 가 github 일 때 수집할 계정이나 조직 이름이다.
     GITHUB_OWNER: ""
 
   resources:
-    # 색인할 때 모델과 조각 배치를 함께 올린다. 검색 서버보다 넉넉히 준다
+    # 색인할 때 모델과 조각 배치를 함께 올린다. 검색 서버보다 넉넉히 준다.
     requests:
       cpu: "1"
       memory: 3Gi
@@ -92,16 +109,15 @@ sync:
   tolerations: []
   affinity: {}
 
-# 볼륨은 ReadWriteOnce 다. 검색 서버와 수집·색인이 모델 볼륨을 함께 마운트하므로
-# 두 파드가 같은 노드에 떠야 한다. 단일 노드면 상관없다.
+# 볼륨은 ReadWriteOnce 다. 검색 서버와 수집·색인이 모델 볼륨을 함께 마운트하므로 두 파드가 같은 노드에 떠야 한다.
 # helm uninstall 해도 볼륨은 남는다. 완전히 지우려면 PVC 를 따로 지운다.
 persistence:
-  # 비우면 클러스터 기본 스토리지 클래스를 쓴다
+  # 비우면 클러스터 기본 스토리지 클래스를 쓴다.
   storageClass: ""
-  # 수집한 md 와 .manifest.json
+  # 수집한 md 와 수집 기록(.manifest.json)을 둔다.
   docs:
     size: 5Gi
-  # bge-m3 모델 캐시. 검색 서버와 수집·색인이 함께 쓴다
+  # bge-m3 모델 캐시다. 검색 서버와 수집·색인이 함께 쓴다.
   model:
     size: 5Gi
 

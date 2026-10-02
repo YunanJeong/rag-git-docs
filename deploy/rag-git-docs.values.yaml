@@ -1,5 +1,8 @@
-# rag-git-docs 차트 기본값 위에 덮어쓰는, 이 환경의 값이다.
+# 이 환경(EC2 위 단일 노드 k3s)에 rag-git-docs 를 설치할 때 차트 기본값 위에 덮어쓰는 값이다.
+# 여기 없는 항목은 차트 기본값(charts/rag-git-docs/values.yaml)을 그대로 쓴다.
+# 토큰은 여기 적지 않고 rag-git-docs.secret.yaml 에 적는다.
 
+# 이미지를 받을 레지스트리 주소다. push 할 때 주소와 다를 수 있다.
 image:
   repository: docker.wai/yunan/rag-git-docs
 
@@ -10,17 +13,23 @@ qdrant:
   apiKeySecret:
     name: rag-qdrant-apikey
 
+# 검색 서버를 노드의 30876 포트로 연다.
 # EC2 보안그룹에서 이 포트를 내 IP 에만 연다.
 serve:
   service:
     type: NodePort
     nodePort: 30876
 
+# 수집·색인 CronJob.
 sync:
+  # 03:00 를 한국 시간으로 계산한다. 없으면 EC2 의 UTC 기준이라 한국 시간 낮 12시에 돈다.
   timeZone: Asia/Seoul
   env:
+    # 수집할 GitLab 그룹 경로다. 예: https://gitlab.com/mycompany/platform 이면 mycompany/platform.
     GITLAB_GROUP: ""
+    # 사내 설치형 GitLab 이면 주소를 적는다. 없으면 https://gitlab.com 을 쓴다.
+    # GITLAB_URL: https://gitlab.example.com
 
-# k3s 기본 스토리지 클래스. 노드 디스크에 저장된다
+# k3s 에 기본으로 들어 있는 스토리지 클래스다. 노드 디스크에 저장된다.
 persistence:
   storageClass: local-path
