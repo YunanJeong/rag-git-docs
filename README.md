@@ -42,7 +42,7 @@ rag-git-docs/
 
 ```bash
 # 이미지
-docker build -t docker.wai/yunan/rag-git-docs:0.1.0 . && docker push docker.wai/yunan/rag-git-docs:0.1.0
+docker build -t private.docker.wai/yunan/rag-git-docs:0.1.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.1.0
 
 # Qdrant 먼저. 이 차트가 만드는 서비스와 Qdrant API 키 Secret 을 rag-git-docs 가 이름으로 찾으므로 같은 네임스페이스에 둔다
 helm install rag-qdrant qdrant/qdrant -n rag --create-namespace -f deploy/qdrant-helm/values.yaml
