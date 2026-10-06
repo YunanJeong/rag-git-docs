@@ -48,7 +48,7 @@ rag-git-docs/
 
 ```bash
 # 이미지. 태그는 deploy/rag-git-docs.values.yaml 의 image.tag 와 맞춘다
-docker build -t private.docker.wai/yunan/rag-git-docs:0.3.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.3.0
+docker build -t private.docker.wai/yunan/rag-git-docs:0.4.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.4.0
 
 # 차트 패키지. 차트 템플릿을 고쳤을 때만 Chart.yaml 의 version 을 올리고 다시 만든다
 helm package charts/rag-git-docs -d deploy/packages

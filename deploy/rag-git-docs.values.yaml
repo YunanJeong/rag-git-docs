@@ -6,7 +6,7 @@
 # 앱 코드만 바뀌면 차트를 다시 패키징하지 않고 tag 만 올려 helm upgrade 한다.
 image:
   repository: docker.wai/yunan/rag-git-docs
-  tag: "0.3.0"
+  tag: "0.4.0"
 
 # 같은 네임스페이스에 Qdrant 를 릴리스 이름 rag-qdrant 로 설치했다.
 # 서비스 이름과 Qdrant API 키 Secret 이름이 그 릴리스 이름에서 나온다.
