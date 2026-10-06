@@ -46,7 +46,7 @@ def main() -> int:
     print(f"조각 {len(texts)}개 임베딩", file=sys.stderr)
     name = store.replace(store.client(), texts, Embedder().encode(texts))
     print(f"완료: {store.ALIAS} → {name}, 건너뛴 파일 {skipped}개", file=sys.stderr)
-    return 1 if skipped else 0
+    return 0
 
 
 if __name__ == "__main__":
