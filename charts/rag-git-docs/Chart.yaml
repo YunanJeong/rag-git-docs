@@ -2,5 +2,5 @@ apiVersion: v2
 name: rag-git-docs
 description: 검색 서버(serve.py)와 매일 수집·색인(collect.py, index.py)
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.2.0
+appVersion: "0.2.0"

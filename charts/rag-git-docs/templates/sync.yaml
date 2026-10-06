@@ -42,9 +42,9 @@ spec:
             - name: sync
               image: {{ include "rag.image" . }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
-              # collect.py 는 리포 하나만 실패해도 종료 코드 1 로 끝난다.
-              # 그래도 색인은 돌리도록 && 대신 ; 로 잇는다. 실패한 리포는 옛 파일이 그대로 남아 있다.
-              command: ["sh", "-c", "python collect.py; python index.py"]
+              # collect.py 의 종료 코드를 index.py 에 넘긴다. 3 이면 바뀐 문서가 없어 색인을 건너뛴다.
+              # 리포 하나만 실패해도(1) 색인은 돌린다. 실패한 리포는 옛 파일이 그대로 남아 있다.
+              command: ["sh", "-c", "python collect.py; COLLECT_EXIT=$? python index.py"]
               {{- with .Values.securityContext }}
               securityContext:
                 {{- toYaml . | nindent 16 }}

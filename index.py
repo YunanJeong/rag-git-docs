@@ -27,6 +27,14 @@ def read_md(path: Path) -> str | None:
 
 def main() -> int:
     root = Path(os.environ["DOCS_DIR"])
+    db = store.client()
+
+    # 수집이 "바뀐 것 없음"(종료 코드 3)으로 끝났으면 색인을 건너뛴다.
+    # 색인이 아직 없거나 지난번 색인이 실패했으면 별칭이 없으므로 그때는 색인한다.
+    if os.environ.get("COLLECT_EXIT") == "3" and db.collection_exists(store.ALIAS):
+        print("바뀐 문서가 없어 색인을 건너뛴다", file=sys.stderr)
+        return 0
+
     texts: list[str] = []
     skipped = 0
     for f in sorted(root.rglob("*.md")):
@@ -44,7 +52,7 @@ def main() -> int:
         return 2
 
     print(f"조각 {len(texts)}개 임베딩", file=sys.stderr)
-    name = store.replace(store.client(), texts, Embedder().encode(texts))
+    name = store.replace(db, texts, Embedder().encode(texts))
     print(f"완료: {store.ALIAS} → {name}, 건너뛴 파일 {skipped}개", file=sys.stderr)
     return 0
 

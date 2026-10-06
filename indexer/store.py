@@ -24,7 +24,8 @@ def client() -> QdrantClient:
 
 
 def replace(db: QdrantClient, texts: list[str], vectors: list[dict]) -> str:
-    name = f"{ALIAS}_{time.strftime('%Y%m%d_%H%M%S')}"
+    # 컬렉션 이름의 시각은 UTC 다. 끝의 Z 가 UTC 라는 표시다.
+    name = f"{ALIAS}_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
     db.create_collection(
         name,
         vectors_config={"dense": models.VectorParams(size=1024, distance=models.Distance.COSINE)},

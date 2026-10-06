@@ -46,7 +46,7 @@ rag-git-docs/
 
 ```bash
 # 이미지
-docker build -t private.docker.wai/yunan/rag-git-docs:0.1.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.1.0
+docker build -t private.docker.wai/yunan/rag-git-docs:0.2.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.2.0
 
 # 차트 패키지. 차트 소스를 고쳤으면 Chart.yaml 의 version 을 올리고 다시 만든다
 helm package charts/rag-git-docs -d deploy/packages
@@ -56,7 +56,7 @@ helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag --create-namesp
 
 # 앱. 예시 파일을 복사해 비밀값을 채우고 설치할 때 함께 넘긴다 (복사한 파일은 git 에서 제외됨)
 cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml
-helm install rag-git-docs deploy/packages/rag-git-docs-0.1.0.tgz -n rag \
+helm install rag-git-docs deploy/packages/rag-git-docs-0.2.0.tgz -n rag \
   -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 

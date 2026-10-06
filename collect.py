@@ -1,6 +1,9 @@
 """진입점 1 — 소스의 md 를 DOCS_DIR 로 받는다. 두 번째 실행부터는 바뀐 것만 받는다.
 
 도중에 실패하면 기록을 저장하지 않고 끝난다. 다음 실행이 같은 작업을 다시 한다.
+
+종료 코드: 0 바뀐 것 있음, 1 일부 리포 조회 실패, 2 시작하지 못함, 3 바뀐 것 없음.
+3 이면 색인을 다시 할 필요가 없다.
 """
 
 from __future__ import annotations
@@ -21,6 +24,8 @@ def main() -> int:
     root = Path(os.environ["DOCS_DIR"])
     root.mkdir(parents=True, exist_ok=True)
     manifest = load_manifest(root)
+    # 끝에서 비교해 바뀐 게 있는지 본다. 경로와 내용 해시가 모두 같으면 바뀐 것이 없다.
+    before = {repo: dict(files) for repo, files in manifest.items()}
 
     repos = src.list_repos()
     # 0개로 오면 모든 리포가 사라진 것으로 판정돼 전부 지워진다. 권한 문제일 때가 많다.
@@ -54,7 +59,12 @@ def main() -> int:
         print(f"{path}: 리포가 사라져 문서를 지웠다", file=sys.stderr)
 
     save_manifest(root, manifest)
-    return 1 if failed else 0
+    if failed:
+        return 1
+    if manifest == before:
+        print("바뀐 문서가 없다", file=sys.stderr)
+        return 3
+    return 0
 
 
 if __name__ == "__main__":
