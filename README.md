@@ -36,7 +36,9 @@ rag-git-docs/
 │   └── rag-git-docs.secret.example.yaml   토큰 자리. 복사본은 git 에서 제외
 ├── infra/                서버 테라폼 (예정)
 ├── tests/                지울 파일 판정과 md 자르기 테스트
-└── docs/design.md        왜 이렇게 만들었는지에 대한 기록. 코드를 고치기 전에 읽는다
+└── docs/
+    ├── design.md                 왜 이렇게 만들었는지에 대한 기록. 코드를 고치기 전에 읽는다
+    └── proposal-git-clone.md     보류 중인 안건. 수집을 git clone/pull 로 바꾸기
 ```
 
 `serve.py` 는 `indexer/` 의 `embed.py` 와 `store.py` 를 가져다 쓴다. 질문을 문서와 비교하려면
