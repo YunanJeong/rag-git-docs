@@ -20,3 +20,8 @@ def test_hash_inside_code_fence_is_not_a_heading():
 def test_sibling_heading_replaces_previous():
     chunks = chunk_markdown("# A\n\n## B\n\nb\n\n## C\n\nc\n", "x.md")
     assert chunks[-1].startswith("[x.md > A > C]")
+
+
+def test_breadcrumb_has_date_when_given():
+    chunks = chunk_markdown("# 배포\n\n본문\n", "a/b.md", "2021-03-14")
+    assert chunks == ["[a/b.md > 배포 | 수정 2021-03-14]\n본문"]

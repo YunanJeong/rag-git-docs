@@ -46,3 +46,12 @@ def fetch(repo: Repo, sha: str) -> bytes:
     api, headers = _api()
     raw = {**headers, "Accept": "application/vnd.github.raw"}
     return get(f"{api}/repos/{repo.id}/git/blobs/{sha}", raw)[0]
+
+
+def last_commit_date(repo: Repo, path: str) -> str:
+    """파일을 마지막으로 바꾼 커밋의 날짜(YYYY-MM-DD). 기록이 없으면 빈 문자열."""
+    api, headers = _api()
+    ref = urllib.parse.quote(repo.branch, safe="")
+    p = urllib.parse.quote(path, safe="")
+    commits = json.loads(get(f"{api}/repos/{repo.id}/commits?sha={ref}&path={p}&per_page=1", headers)[0])
+    return commits[0]["commit"]["committer"]["date"][:10] if commits else ""

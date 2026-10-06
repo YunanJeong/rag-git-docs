@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -25,6 +26,12 @@ def read_md(path: Path) -> str | None:
     return None
 
 
+def load_dates(root: Path) -> dict[str, str]:
+    """collect.py 가 .manifest.json 에 남긴 "리포/파일" → 마지막 커밋일. 없으면 비어 있다."""
+    path = root / ".manifest.json"
+    return json.loads(path.read_text(encoding="utf-8")).get("dates", {}) if path.exists() else {}
+
+
 def main() -> int:
     root = Path(os.environ["DOCS_DIR"])
     db = store.client()
@@ -35,6 +42,7 @@ def main() -> int:
         print("바뀐 문서가 없어 색인을 건너뛴다", file=sys.stderr)
         return 0
 
+    dates = load_dates(root)
     texts: list[str] = []
     skipped = 0
     for f in sorted(root.rglob("*.md")):
@@ -45,7 +53,7 @@ def main() -> int:
             print(f"  ! 인코딩을 알 수 없어 건너뜀: {rel}", file=sys.stderr)
             skipped += 1
             continue
-        texts.extend(chunk_markdown(text, rel))
+        texts.extend(chunk_markdown(text, rel, dates.get(rel, "")))
     # 비어 있으면 멀쩡한 색인을 빈 색인으로 바꾸게 된다.
     if not texts:
         print(f"md 가 없다: {root}", file=sys.stderr)

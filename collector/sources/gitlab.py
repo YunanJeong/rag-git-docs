@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import urllib.parse
 
@@ -38,3 +39,12 @@ def fetch(repo: Repo, sha: str) -> bytes:
     # 경로 대신 blob SHA 로 받는다. 경로를 URL 인코딩하면 한글이나 공백에서 틀리기 쉽다.
     api, headers = _api()
     return get(f"{api}/projects/{repo.id}/repository/blobs/{sha}/raw", headers)[0]
+
+
+def last_commit_date(repo: Repo, path: str) -> str:
+    """파일을 마지막으로 바꾼 커밋의 날짜(YYYY-MM-DD). 기록이 없으면 빈 문자열."""
+    api, headers = _api()
+    ref = urllib.parse.quote(repo.branch, safe="")
+    p = urllib.parse.quote(path, safe="")
+    commits = json.loads(get(f"{api}/projects/{repo.id}/repository/commits?ref_name={ref}&path={p}&per_page=1", headers)[0])
+    return commits[0]["committed_date"][:10] if commits else ""

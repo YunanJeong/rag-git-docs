@@ -45,10 +45,10 @@ rag-git-docs/
 ## 배포
 
 ```bash
-# 이미지
-docker build -t private.docker.wai/yunan/rag-git-docs:0.2.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.2.0
+# 이미지. 태그는 deploy/rag-git-docs.values.yaml 의 image.tag 와 맞춘다
+docker build -t private.docker.wai/yunan/rag-git-docs:0.3.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.3.0
 
-# 차트 패키지. 차트 소스를 고쳤으면 Chart.yaml 의 version 을 올리고 다시 만든다
+# 차트 패키지. 차트 템플릿을 고쳤을 때만 Chart.yaml 의 version 을 올리고 다시 만든다
 helm package charts/rag-git-docs -d deploy/packages
 
 # Qdrant 먼저. 이 차트가 만드는 서비스와 Qdrant API 키 Secret 을 rag-git-docs 가 이름으로 찾으므로 같은 네임스페이스에 둔다
@@ -57,6 +57,15 @@ helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag --create-namesp
 # 앱. 예시 파일을 복사해 비밀값을 채우고 설치할 때 함께 넘긴다 (복사한 파일은 git 에서 제외됨)
 cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml
 helm install rag-git-docs deploy/packages/rag-git-docs-0.2.0.tgz -n rag \
+  -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
+```
+
+### 앱만 바뀌었을 때
+
+차트는 그대로 두고 이미지만 새 태그로 올린 뒤, `deploy/rag-git-docs.values.yaml` 의 `image.tag` 를 바꿔 upgrade 한다.
+
+```bash
+helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.2.0.tgz -n rag \
   -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
