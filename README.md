@@ -94,9 +94,9 @@ rag-git-docs/
 ├── deploy/               이 환경(EC2 k3s)에 배포하는 것
 │   ├── packages/         설치할 차트 패키지. rag-git-docs 는 helm package 로 만들고, Qdrant 는 공식에서 받는다
 │   ├── qdrant.values.yaml           Qdrant 차트 기본값 위에 덮어쓰는 이 환경의 값
-│   ├── qdrant.clone.values.yaml     clone 모드를 다른 네임스페이스에 동시에 띄울 때 Qdrant 에 덧붙이는 값
+│   ├── qdrant.clone.values.yaml     clone 모드 릴리스용 Qdrant 의 값. 이 파일 하나로 설치한다
 │   ├── rag-git-docs.values.yaml     rag-git-docs 차트 기본값 위에 덮어쓰는 이 환경의 값
-│   ├── rag-git-docs.clone.values.yaml   clone 모드를 동시에 띄울 때 덧붙이는 값. 노드 포트·시각·볼륨 크기만 다르다
+│   ├── rag-git-docs.clone.values.yaml   clone 모드 릴리스의 값. 이 파일 하나로 설치한다
 │   └── rag-git-docs.secret.example.yaml   토큰 자리. 복사본은 git 에서 제외
 ├── infra/                서버 테라폼 (예정)
 ├── tests/                지울 파일 판정, md 자르기, clone 기록과 git 동작 테스트
@@ -157,14 +157,14 @@ clone 버전 실행 예시:
 
 ```bash
 kubectl create ns rag-clone
-helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag-clone -f deploy/qdrant.values.yaml -f deploy/qdrant.clone.values.yaml
-helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
+helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag-clone -f deploy/qdrant.clone.values.yaml
+helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
 
 # 첫 수집을 바로 돌린다
 kubectl -n rag-clone create job --from=cronjob/rag-git-docs-sync sync-now 
 ```
 
-clone 용 values 가 바꾸는 것은 MCP서버·Qdrant 의 노드 포트, CronJob 시각, Qdrant 별칭(`QDRANT_ALIAS`), 볼륨 크기뿐이다.
+clone 용 values 는 api 용과 같은 항목을 모두 적은 별도 파일이라, 그 파일 하나로 설치한다. api 용과 다른 값은 수집 방식, MCP서버·Qdrant 의 노드 포트, CronJob 시각, Qdrant 별칭(`QDRANT_ALIAS`), 볼륨 크기다.
 
 **한 릴리스에서 갈아끼우기.** `env` 의 `COLLECT_MODE` 와 `DOCS_DIR` 을 함께 바꾸고 upgrade 한다.
 두 방식은 같은 볼륨 안에서 다른 디렉터리(`/data/docs`, `/data/repos`)를 쓰므로, 되돌리면 각자의 데이터를 이어서 쓴다.

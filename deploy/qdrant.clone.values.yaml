@@ -1,7 +1,6 @@
-# clone 모드 PoC 용 Qdrant 를 같은 노드에 하나 더 띄울 때, qdrant.values.yaml 위에 덮어쓰는 값이다.
-# 노드 포트는 클러스터 전체에서 하나라 api 쪽과 다르게 연다.
-# ports 는 목록이라 일부만 적으면 나머지가 사라지므로 세 개를 모두 적는다.
+# clone 모드 릴리스용 Qdrant 의 값. 노드 포트만 api 쪽과 다르다.
 service:
+  type: NodePort
   ports:
     - name: http
       port: 6333
@@ -19,3 +18,8 @@ service:
       targetPort: 6335
       protocol: TCP
       checksEnabled: false
+
+persistence:
+  storageClassName: local-path
+
+apiKey: true
