@@ -42,10 +42,13 @@ INSTRUCTIONS = """\
 결과에는 문서 경로와 마지막 수정일이 붙어 있다. 답할 때 근거로 쓴 문서 경로를 적고,
 수정일이 오래된 문서는 지금과 다를 수 있다고 알린다. 찾지 못하면 찾지 못했다고 말하고 추측하지 않는다.
 """
+# 코드 도구는 느리고 토큰을 많이 쓴다. 문서 검색으로 끝날 질문에서 코드를 뒤지지 않도록 기준을 못박는다.
 CODE_INSTRUCTIONS = """
-같은 리포들의 코드도 볼 수 있다. 문서 검색을 먼저 하고, 문서로 답이 안 되거나 특정 함수·설정 키·
-에러 문구의 실제 위치를 확인해야 할 때만 search_code 로 찾고 read_code 로 그 부근을 읽는다.
-리포 이름은 search_docs 결과 경로의 앞부분(<그룹>/<리포>)이다. 코드는 하루 한 번 맞추므로 그날 올라온 변경은 없을 수 있다.
+같은 리포들의 코드와 커밋 이력을 읽는 도구(search_code, read_code, code_history)도 있다. 이 도구들은 예외적으로만 쓴다.
+- 항상 search_docs 를 먼저 부르고, 문서로 답이 되면 코드 도구를 부르지 않는다. 확인 삼아, 덧붙이려고 코드를 보지 않는다.
+- 코드 도구는 둘 중 하나일 때만 쓴다: 사용자가 코드·구현·변경 이력을 직접 물었을 때, 또는 문서에 답이 없어 특정 함수·설정 키·에러 문구의 위치나 바뀐 시점을 확인해야만 답할 수 있을 때.
+- 쓸 때는 리포와 경로를 좁혀 몇 번 안에 끝낸다. 리포 전체를 훑거나 관련 파일을 차례로 다 읽지 않는다. 찾지 못하면 거기서 멈추고 찾지 못했다고 말한다.
+리포 이름은 search_docs 결과 경로의 앞부분(<그룹>/<리포>)이다. 코드는 주기적으로 맞추므로 최근 변경은 없을 수 있다.
 """
 
 server = MCPServer(name="git-docs", instructions=INSTRUCTIONS + (CODE_INSTRUCTIONS if MODE == "clone" else ""))
@@ -83,6 +86,7 @@ if MODE == "clone":
 
     server.add_tool(code.search_code)
     server.add_tool(code.read_code)
+    server.add_tool(code.code_history)
 
 
 def require_token(app, token: str):

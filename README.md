@@ -8,7 +8,7 @@
 
 이 프로젝트는 리포들에 흩어진 md 문서를 모아 Qdrant Vector DB 에 색인하고, Claude Code 가 MCP서버로 붙어 질문과 관련된 부분만 찾아 쓰게 한다.
 **색인하는 것은 문서뿐이다.** 코드는 색인하지 않는다.
-`clone` 모드를 쓰면 리포 전체와 git 이력을 받아 두고, 그 코드를 분석할 수 있는 MCP tool(`search_code`, `read_code`)을 함께 제공한다.
+`clone` 모드를 쓰면 리포 전체와 git 이력을 받아 두고, 코드와 변경 이력을 분석할 수 있는 MCP tool(`search_code`, `read_code`, `code_history`)을 함께 제공한다.
 
 ## 수집 방식 — md only(`api`) 와 리포 전체(`clone`)
 
@@ -29,15 +29,17 @@ REST API 로 리포마다 `.md` 파일만 받는다. 코드는 받지 않는다.
 ### `clone` — 리포 전체. 품질과 관리 편의를 얻는다 (PoC)
 
 리포를 이력까지 통째로 `git clone` 해 두고, 주기적으로 `git fetch` 해 원격과 맞춘다.
-MCP서버에 코드 도구 `search_code`, `read_code` 가 더해진다.
+MCP서버에 코드 도구 `search_code`, `read_code`, `code_history` 가 더해진다.
+코드 도구는 문서 검색으로 답이 안 될 때만 쓰도록 MCP서버 지침과 도구 설명에 못박아 두었다. 빠르고 토큰을 적게 쓰는 문서 검색의 장점을 코드 탐색이 잡아먹지 않게 하기 위해서다.
 
-- **답의 품질이 오른다.** "이 설정 키를 실제로 어디서 읽나", "이 에러 문구는 어디서 나나"처럼 문서로 답이 안 되는 질문에 코드를 근거로 답한다.
+- **답의 품질이 오른다.** "이 설정 키를 실제로 어디서 읽나", "이 동작은 언제 왜 바뀌었나"처럼 문서로 답이 안 되는 질문에 코드와 커밋 이력을 근거로 답한다.
   문서와 실제 코드가 어긋날 때 코드 쪽을 확인할 수 있다.
 - **관리가 편해진다.** 바뀐 것만 받기와 지운 것 지우기를 git 이 한다. 문서별 날짜는 `git log` 에서 바로 나온다.
   주기적으로 fetch 만 하고 질문할 때는 git 호스팅을 부르지 않아, 호스팅 쪽 부하도 적다.
 - **대가는 보안이다.**
   - 볼륨과 그 백업에 사내 코드 전체와 이력의 사본이 생긴다.
-  - 실수로 커밋된 시크릿이 이력째 들어온다. 이미 지운 것도 들어온다.
+  - 실수로 커밋된 시크릿이 이력째 들어온다. 이미 지운 것도 들어오고, `code_history` 로 과거 변경 내용을 볼 수 있다.
+  - 커밋 메시지와 작성자 이름이 MCP서버로 보인다. 작성자 이메일은 주지 않는다.
   - MCP서버 토큰만 있으면, 수집 계정이 볼 수 있는 모든 리포의 코드를 `read_code` 로 반복해 옮겨 적을 수 있다.
     토큰 관리와 네트워크 접근 제한을 api 보다 엄격하게 해야 한다.
   - 리포별 권한을 나누지 않는다. 쓰는 사람 모두가 대상 리포를 다 볼 수 있다는 전제다.
@@ -50,7 +52,7 @@ api 를 갈아엎지 않고 나란히 두어 환경변수만 바꾸면 오갈 �
 | | `api` (기본) | `clone` (PoC) |
 |---|---|---|
 | 서버에 두는 것 | md 파일 | 리포 전체와 이력 |
-| MCP서버 도구 | `search_docs` | `search_docs`, `search_code`, `read_code` |
+| MCP서버 도구 | `search_docs` | `search_docs`, `search_code`, `read_code`, `code_history` |
 | GitLab 토큰 스코프 | `read_api` | `read_api` + `read_repository` |
 | `DOCS_DIR` (헬름) | `/data/docs` | `/data/repos` |
 
@@ -66,7 +68,7 @@ rag-git-docs/
 ├── collect_clone.py         clone 리포를 이력까지 DOCS_DIR 에 git clone 해 두고 맞춘다  → cloner/ + collector/sources
 ├── index.py              2. DOCS_DIR 의 md 를 Qdrant 에 색인한다. 수집 방식을 모른다    → indexer/
 ├── serve.py              3. MCP서버. Claude Code 의 질문으로 Qdrant 에서 관련 조각을 찾아 준다
-│                            clone 이면 코드 도구(search_code, read_code)도 노출한다     → cloner/code.py
+│                            clone 이면 코드 도구(search_code, read_code, code_history)도 노출한다 → cloner/code.py
 │
 ├── collector/            api 방식. git 호스팅에서 md 를 내려받아 DOCS_DIR 에 둔다
 │   ├── sources/          GitLab·GitHub API 호출. 호스팅마다 파일 하나. clone 도 리포 목록·인증은 여기서 받는다
@@ -80,7 +82,7 @@ rag-git-docs/
 ├── cloner/               clone 방식. 리포를 git 으로 받아 두고, MCP서버가 그 코드를 읽는다
 │   ├── git.py            clone·fetch 로 원격과 맞추고, md 마다 마지막 커밋일을 git log 로 구한다
 │   ├── state.py          리포마다 맞춘 커밋 해시와 날짜를 .manifest.json 에 남긴다. 지울 clone 을 정한다
-│   └── code.py           MCP서버의 코드 도구. clone 을 git grep·git show 로 읽는다
+│   └── code.py           MCP서버의 코드 도구. clone 을 git grep·git show·git log 로 읽는다
 │
 ├── indexer/              2 단계. md 를 잘라 벡터로 바꿔 Qdrant 에 넣는다
 │   ├── chunk.py          md 를 헤딩마다 잘라 조각으로 만든다

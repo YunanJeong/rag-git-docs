@@ -66,3 +66,17 @@ def test_code_tools_stay_inside_repo(tmp_path, origin, monkeypatch):
     assert "app.py" in code.read_code("g/r", "")  # 디렉터리면 목록
     assert code.read_code("g/r", "../../etc/passwd").startswith("없는 경로다")
     assert code.search_code("g/other", "x").startswith("없는 리포다")
+
+
+def test_code_history_lists_and_shows_without_email(tmp_path, origin, monkeypatch):
+    root = tmp_path / "docs"
+    git.sync(root / "g" / "r", origin.as_uri(), "main", git.auth_env("u", "t"))
+    state.save(root, {"g/r": "x"}, {})
+    monkeypatch.setenv("DOCS_DIR", str(root))
+
+    log = code.code_history("g/r", "docs/배포 절차.md").splitlines()
+    assert [line.split()[1] for line in log] == ["2025-02-01", "2025-01-01"]
+    shown = code.code_history("g/r", "docs/배포 절차.md", log[0].split()[0])
+    assert "+롤백" in shown
+    assert "example.com" not in "\n".join(log) + shown, "작성자 이메일이 나왔다"
+    assert code.code_history("g/r", commit="--all") == "commit 은 16진수 커밋 해시다"

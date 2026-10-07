@@ -144,3 +144,5 @@ clone 은 API 대신 git 을 쓰고 manifest 기반 증분 판단도 필요 없�
 - 코드 찾기는 ripgrep 이 아니라 `git grep` 이다. 이미지에는 git 만 넣는다.
 - `pull` 대신 `fetch` 후 `reset --hard FETCH_HEAD` 로 원격과 맞춘다.
 - 토큰은 URL 에 넣지 않는다. 환경변수(`GIT_CONFIG_*`)로 `http.extraHeader` 를 넘긴다.
+- 이력을 남기는 김에 커밋 이력 도구(`code_history`)를 더했다. 작성자 이메일은 주지 않는다.
+- 코드 도구를 문서 검색으로 답이 안 될 때만 쓰도록 서버 지침과 도구 설명에 기준을 적었다. 문서 검색의 속도와 토큰 이점을 지키기 위해서다.
