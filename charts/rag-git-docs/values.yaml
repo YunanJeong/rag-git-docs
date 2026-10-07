@@ -23,6 +23,9 @@ env:
   # 수집한 것을 둘 곳이다. docs 볼륨이 /data 에 붙는다.
   # 두 방식은 같은 디렉터리를 쓸 수 없다. clone 이면 /data/repos 처럼 다른 곳을 적는다.
   DOCS_DIR: /data/docs
+  # 검색이 읽는 Qdrant 별칭이다. 색인은 <별칭>_<시각> 컬렉션을 새로 채운 뒤 별칭을 옮긴다.
+  # Qdrant 하나를 여러 릴리스가 같이 쓰면 릴리스마다 다른 값을 준다.
+  QDRANT_ALIAS: docs
 
 # 이 차트는 Qdrant 를 설치하지 않는다. 따로 띄운 Qdrant 에 붙는다.
 qdrant:

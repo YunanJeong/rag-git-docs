@@ -8,11 +8,13 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 
 from qdrant_client import QdrantClient, models
 
-ALIAS = "docs"
+# 색인과 검색이 같은 값을 봐야 한다. Qdrant 하나를 여러 릴리스가 같이 쓰면 릴리스마다 다르게 준다.
+ALIAS = os.environ.get("QDRANT_ALIAS", "docs")
 
 
 def client() -> QdrantClient:
@@ -48,7 +50,9 @@ def replace(db: QdrantClient, texts: list[str], vectors: list[dict]) -> str:
             models.CreateAliasOperation(create_alias=models.CreateAlias(collection_name=name, alias_name=ALIAS)),
         ]
     )
+    # 이 별칭이 만든 이름 형식만 지운다. 접두사로만 고르면 docs_clone 같은 다른 별칭의 컬렉션까지 지운다.
+    mine = re.compile(rf"{re.escape(ALIAS)}_\d{{8}}T\d{{6}}Z")
     for c in db.get_collections().collections:
-        if c.name.startswith(f"{ALIAS}_") and c.name != name:
+        if mine.fullmatch(c.name) and c.name != name:
             db.delete_collection(c.name)
     return name

@@ -94,7 +94,9 @@ rag-git-docs/
 ├── deploy/               이 환경(EC2 k3s)에 배포하는 것
 │   ├── packages/         설치할 차트 패키지. rag-git-docs 는 helm package 로 만들고, Qdrant 는 공식에서 받는다
 │   ├── qdrant.values.yaml           Qdrant 차트 기본값 위에 덮어쓰는 이 환경의 값
+│   ├── qdrant.clone.values.yaml     clone 모드를 다른 네임스페이스에 동시에 띄울 때 Qdrant 에 덧붙이는 값
 │   ├── rag-git-docs.values.yaml     rag-git-docs 차트 기본값 위에 덮어쓰는 이 환경의 값
+│   ├── rag-git-docs.clone.values.yaml   clone 모드를 동시에 띄울 때 덧붙이는 값. 노드 포트·시각·볼륨 크기만 다르다
 │   └── rag-git-docs.secret.example.yaml   토큰 자리. 복사본은 git 에서 제외
 ├── infra/                서버 테라폼 (예정)
 ├── tests/                지울 파일 판정, md 자르기, clone 기록과 git 동작 테스트
@@ -143,20 +145,36 @@ kubectl -n rag logs -f job/sync-now
 kubectl -n rag delete job sync-now    # 같은 이름으로 다시 만들려면 지운다
 ```
 
-### 수집 방식 바꾸기
+### 수집 방식 고르기
 
 차트는 수집 방식을 모른다. values 의 `env` 를 수집·색인 CronJob 과 MCP서버에 그대로 환경변수로 넣을 뿐이다.
-`deploy/rag-git-docs.values.yaml` 의 `env` 에서 `COLLECT_MODE` 와 `DOCS_DIR` 을 함께 바꾸고 upgrade 한 뒤,
-위의 "지금 한 번 돌리기"로 첫 수집을 돌린다.
+그래서 방식마다 릴리스를 따로 두면 된다.
 
-```yaml
-env:
-  COLLECT_MODE: clone
-  DOCS_DIR: /data/repos
+**두 방식을 동시에 띄우기.** 네임스페이스와 릴리스를 나누면 볼륨·Service·Secret 이 따로 생겨 한 노드에서도 서로 격리된다.
+Qdrant 도 네임스페이스마다 하나씩 띄운다. 겹치는 것은 클러스터 전체에서 하나뿐인 노드 포트와 CronJob 시각이라, clone 용 values 가 이것만 바꾼다.
+
+clone 버전 실행 예시:
+
+```bash
+kubectl create ns rag-clone
+helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag-clone -f deploy/qdrant.values.yaml -f deploy/qdrant.clone.values.yaml
+helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
+
+# 첫 수집을 바로 돌린다
+kubectl -n rag-clone create job --from=cronjob/rag-git-docs-sync sync-now 
 ```
 
-clone 으로 처음 바꾸면 리포 전체를 이력까지 받으므로 오래 걸린다. 그 전에 GitLab 토큰에 `read_repository` 스코프를 더하고,
-볼륨에 리포 전체가 들어갈 여유가 있는지 확인한다. 새로 설치한다면 `persistence.docs.size` 를 그 크기에 맞춘다.
+| | api (`rag`) | clone (`rag-clone`) |
+|---|---|---|
+| MCP서버 노드 포트 | 30876 | 30877 |
+| Qdrant 노드 포트 | 30633 | 30634 |
+| 수집·색인 시각 | 03:00 | 04:00 |
+| Qdrant 별칭(`QDRANT_ALIAS`) | `docs` | `docs-clone` |
+
+**한 릴리스에서 갈아끼우기.** `env` 의 `COLLECT_MODE` 와 `DOCS_DIR` 을 함께 바꾸고 upgrade 한다.
+두 방식은 같은 볼륨 안에서 다른 디렉터리(`/data/docs`, `/data/repos`)를 쓰므로, 되돌리면 각자의 데이터를 이어서 쓴다.
+
+clone 은 첫 수집에 리포 전체를 이력까지 받으므로 오래 걸린다. 그 전에 GitLab 토큰에 `read_repository` 스코프를 더하고, 볼륨에 리포 전체가 들어갈 여유가 있는지 확인한다.
 local-path 처럼 크기를 강제하지 않는 스토리지라면 실제 한도는 노드 디스크다.
 
 ## Claude Code 와 연동하기
