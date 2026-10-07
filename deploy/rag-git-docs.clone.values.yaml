@@ -33,4 +33,4 @@ sync:
 persistence:
   storageClass: local-path
   docs:
-    size: 160Gi
+    size: 70Gi
