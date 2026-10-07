@@ -49,6 +49,7 @@ spec:
             - secretRef:
                 name: {{ include "rag.secretName" . }}
           env:
+            {{- include "rag.env" .Values.env | trim | nindent 12 }}
             {{- include "rag.qdrantEnv" . | nindent 12 }}
           ports:
             - name: http
@@ -70,10 +71,17 @@ spec:
           volumeMounts:
             - name: model
               mountPath: /cache/hf
+            # COLLECT_MODE=clone 이면 코드 도구가 여기서 clone 을 읽는다. 쓰는 것은 수집 쪽뿐이라 읽기 전용으로 붙인다
+            - name: docs
+              mountPath: /data
+              readOnly: true
       volumes:
         - name: model
           persistentVolumeClaim:
             claimName: {{ include "rag.fullname" . }}-model
+        - name: docs
+          persistentVolumeClaim:
+            claimName: {{ include "rag.fullname" . }}-docs
       {{- with .Values.serve.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

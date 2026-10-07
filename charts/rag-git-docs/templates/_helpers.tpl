@@ -45,6 +45,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end -}}
 
+{{/* values 의 map 을 컨테이너 env 목록으로 바꾼다 */}}
+{{- define "rag.env" -}}
+{{- range $k, $v := . }}
+- name: {{ $k }}
+  value: {{ $v | quote }}
+{{- end }}
+{{- end -}}
+
 {{/* 토큰 Secret. existingSecret 을 주면 차트가 만들지 않고 그걸 쓴다 */}}
 {{- define "rag.secretName" -}}
 {{- .Values.existingSecret | default (printf "%s-env" (include "rag.fullname" .)) -}}

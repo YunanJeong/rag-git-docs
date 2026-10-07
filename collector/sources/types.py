@@ -10,6 +10,7 @@ class Repo:
     id: str  # 소스가 API 호출에 쓰는 값
     path: str  # DOCS_DIR 아래 저장 경로
     branch: str | None  # 빈 리포면 None
+    url: str = ""  # git clone 주소. clone 방식만 쓴다
 
 
 def md_files(tree: list[dict], sha_key: str) -> dict[str, str]:

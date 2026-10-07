@@ -18,6 +18,9 @@ def load_manifest(root: Path) -> tuple[dict[str, dict[str, str]], dict[str, str]
     if not path.exists():
         return {}, {}
     data = json.loads(path.read_text(encoding="utf-8"))
+    # clone 방식의 기록을 옛 형식으로 읽으면 clone 이 든 리포 디렉터리에 md 를 덮어쓰게 된다
+    if "mode" in data:
+        raise ValueError(f"{data['mode']} 방식의 수집 기록이 있는 디렉터리다: {root}")
     if "files" not in data:
         return data, {}
     return data["files"], data.get("dates", {})

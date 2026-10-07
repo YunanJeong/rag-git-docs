@@ -1,4 +1,4 @@
-# collect.py 다음 index.py 를 매일 한 번 돌린다.
+# collect.py 다음 index.py 를 매일 한 번 돌린다. 수집 방식과 위치는 env 의 COLLECT_MODE, DOCS_DIR 이 정한다.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -53,12 +53,8 @@ spec:
                 - secretRef:
                     name: {{ include "rag.secretName" . }}
               env:
-                {{- range $k, $v := .Values.sync.env }}
-                - name: {{ $k }}
-                  value: {{ $v | quote }}
-                {{- end }}
-                - name: DOCS_DIR
-                  value: /data/docs
+                {{- include "rag.env" .Values.env | trim | nindent 16 }}
+                {{- include "rag.env" .Values.sync.env | trim | nindent 16 }}
                 {{- include "rag.qdrantEnv" . | nindent 16 }}
               resources:
                 {{- toYaml .Values.sync.resources | nindent 16 }}

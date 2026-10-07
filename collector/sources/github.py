@@ -25,10 +25,15 @@ def list_repos() -> list[Repo]:
     repos = get_pages(f"{api}/users/{owner}/repos?per_page=100&type=owner", headers)
     # archived 는 서버에서 거를 수 없어 여기서 거른다. fork 는 남의 문서라 뺀다.
     return [
-        Repo(r["full_name"], r["full_name"], r.get("default_branch"))
+        Repo(r["full_name"], r["full_name"], r.get("default_branch"), r["clone_url"])
         for r in repos
         if not r["archived"] and not r["fork"]
     ]
+
+
+def git_auth() -> tuple[str, str]:
+    """git 이 HTTPS 로 받을 때 쓸 (사용자 이름, 비밀번호). 토큰에 Contents 읽기 권한이 필요하다."""
+    return "x-access-token", os.environ["GITHUB_TOKEN"]
 
 
 def list_md(repo: Repo) -> dict[str, str]:

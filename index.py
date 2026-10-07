@@ -1,4 +1,4 @@
-"""진입점 2 — DOCS_DIR 의 md 를 전부 잘라 임베딩하고 Qdrant 에 넣는다."""
+"""진입점 2 — DOCS_DIR 의 md 를 전부 잘라 임베딩하고 Qdrant 에 넣는다. 수집 방식(COLLECT_MODE)은 모른다."""
 
 from __future__ import annotations
 
@@ -20,10 +20,26 @@ def read_md(path: Path) -> str | None:
     raw = path.read_bytes()
     for enc in ("utf-8", "cp949"):
         try:
-            return raw.decode(enc)
+            # BOM 이 남으면 첫 줄 헤딩이 헤딩으로 인식되지 않는다. clone 방식은 수집 때 뗄 수 없어 여기서 뗀다.
+            return raw.decode(enc).removeprefix("\ufeff")
         except UnicodeDecodeError:
             continue
     return None
+
+
+def md_files(root: Path) -> list[Path]:
+    """root 아래 .md 파일. .git 디렉터리, 심링크, ._ 로 시작하는 macOS 메타데이터 파일은 뺀다.
+
+    clone 방식이면 DOCS_DIR 에 리포가 통째로 있어 이것들이 섞인다. 심링크는 리포 밖을 가리킬 수 있다.
+    """
+    out: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d != ".git"]
+        for name in filenames:
+            f = Path(dirpath) / name
+            if name.lower().endswith(".md") and not name.startswith("._") and not f.is_symlink():
+                out.append(f)
+    return sorted(out)
 
 
 def load_dates(root: Path) -> dict[str, str]:
@@ -45,7 +61,7 @@ def main() -> int:
     dates = load_dates(root)
     texts: list[str] = []
     skipped = 0
-    for f in sorted(root.rglob("*.md")):
+    for f in md_files(root):
         rel = f.relative_to(root).as_posix()
         text = read_md(f)
         if text is None:

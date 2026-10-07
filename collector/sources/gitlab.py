@@ -20,9 +20,14 @@ def list_repos() -> list[Repo]:
     group = urllib.parse.quote(os.environ["GITLAB_GROUP"], safe="")
     url = f"{api}/groups/{group}/projects?include_subgroups=true&archived=false&per_page=100"
     return [
-        Repo(str(p["id"]), p["path_with_namespace"], p.get("default_branch"))
+        Repo(str(p["id"]), p["path_with_namespace"], p.get("default_branch"), p["http_url_to_repo"])
         for p in get_pages(url, headers)
     ]
+
+
+def git_auth() -> tuple[str, str]:
+    """git 이 HTTPS 로 받을 때 쓸 (사용자 이름, 비밀번호). 토큰에는 read_repository 스코프가 필요하다."""
+    return "oauth2", os.environ["GITLAB_TOKEN"]
 
 
 def list_md(repo: Repo) -> dict[str, str]:

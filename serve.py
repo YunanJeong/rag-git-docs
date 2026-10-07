@@ -4,6 +4,8 @@
 indexer.embed 를 여기서도 쓴다. 모델은 기동 때 한 번만 올려 검색 한 번이 수십 ms 안에 끝난다.
 
 네트워크에 열리므로 모든 요청에 Authorization: Bearer <SERVE_TOKEN> 을 요구한다.
+
+COLLECT_MODE=clone 이면 DOCS_DIR 의 clone 을 읽는 코드 도구(search_code, read_code)를 함께 노출한다.
 """
 
 from __future__ import annotations
@@ -20,6 +22,12 @@ from qdrant_client import models
 from indexer import store
 from indexer.embed import Embedder
 
+MODE = os.environ.get("COLLECT_MODE", "api")
+if MODE not in ("api", "clone"):
+    sys.exit(f"COLLECT_MODE 는 api 또는 clone 이다: {MODE}")
+if MODE == "clone" and not os.environ.get("DOCS_DIR"):
+    sys.exit("COLLECT_MODE=clone 이면 clone 이 있는 DOCS_DIR 이 필요하다")
+
 embedder = Embedder()
 db = store.client()
 # 서버 사용 지침. Claude Code 가 세션에 넣어 주어, 언제 검색하고 결과를 어떻게 쓸지 정한다.
@@ -34,8 +42,13 @@ INSTRUCTIONS = """\
 결과에는 문서 경로와 마지막 수정일이 붙어 있다. 답할 때 근거로 쓴 문서 경로를 적고,
 수정일이 오래된 문서는 지금과 다를 수 있다고 알린다. 찾지 못하면 찾지 못했다고 말하고 추측하지 않는다.
 """
+CODE_INSTRUCTIONS = """
+같은 리포들의 코드도 볼 수 있다. 문서 검색을 먼저 하고, 문서로 답이 안 되거나 특정 함수·설정 키·
+에러 문구의 실제 위치를 확인해야 할 때만 search_code 로 찾고 read_code 로 그 부근을 읽는다.
+리포 이름은 search_docs 결과 경로의 앞부분(<그룹>/<리포>)이다. 코드는 하루 한 번 맞추므로 그날 올라온 변경은 없을 수 있다.
+"""
 
-server = MCPServer(name="git-docs", instructions=INSTRUCTIONS)
+server = MCPServer(name="git-docs", instructions=INSTRUCTIONS + (CODE_INSTRUCTIONS if MODE == "clone" else ""))
 
 
 # docstring 이 도구 설명이 된다. 모델이 이 도구를 부를지 정할 때 읽는 문장이다.
@@ -63,6 +76,13 @@ def search_docs(query: str) -> str:
         limit=5,
     ).points
     return "\n\n".join(h.payload["text"] for h in hits) or "결과 없음"
+
+
+if MODE == "clone":
+    from cloner import code
+
+    server.add_tool(code.search_code)
+    server.add_tool(code.read_code)
 
 
 def require_token(app, token: str):
