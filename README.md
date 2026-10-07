@@ -164,12 +164,7 @@ helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f
 kubectl -n rag-clone create job --from=cronjob/rag-git-docs-sync sync-now 
 ```
 
-| | api (`rag`) | clone (`rag-clone`) |
-|---|---|---|
-| MCP서버 노드 포트 | 30876 | 30877 |
-| Qdrant 노드 포트 | 30633 | 30634 |
-| 수집·색인 시각 | 03:00 | 04:00 |
-| Qdrant 별칭(`QDRANT_ALIAS`) | `docs` | `docs-clone` |
+clone 용 values 가 바꾸는 것은 MCP서버·Qdrant 의 노드 포트, CronJob 시각, Qdrant 별칭(`QDRANT_ALIAS`), 볼륨 크기뿐이다.
 
 **한 릴리스에서 갈아끼우기.** `env` 의 `COLLECT_MODE` 와 `DOCS_DIR` 을 함께 바꾸고 upgrade 한다.
 두 방식은 같은 볼륨 안에서 다른 디렉터리(`/data/docs`, `/data/repos`)를 쓰므로, 되돌리면 각자의 데이터를 이어서 쓴다.

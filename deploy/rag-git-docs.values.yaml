@@ -39,8 +39,6 @@ sync:
     # GITLAB_URL: https://gitlab.example.com
 
 # k3s 에 기본으로 들어 있는 스토리지 클래스다. 노드 디스크에 저장된다.
-# local-path 는 크기를 강제하지 않아 실제 한도는 EC2 디스크다. clone 이면 리포 약 80GiB 에 작업 트리까지
-# 들어가므로 디스크에 160GiB 쯤 여유가 있어야 한다. docs 볼륨 크기(기본 5Gi)는 이미 만든 PVC 라
-# local-path 에서 늘릴 수 없고, 늘릴 필요도 없어서 그대로 둔다.
+# local-path 는 크기를 강제하지 않아 실제 한도는 노드 디스크다.
 persistence:
   storageClass: local-path

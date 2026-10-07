@@ -10,12 +10,12 @@ env:
 
 # Qdrant 주소(qdrant.url)는 그대로 둔다. 같은 네임스페이스에 rag-qdrant 를 따로 띄우므로 이름이 같아도 다른 Qdrant 다.
 
-# 노드 포트는 클러스터 전체에서 하나라 api 쪽(30876)과 다르게 연다.
+# 노드 포트는 클러스터 전체에서 하나라 api 쪽과 다르게 연다.
 serve:
   service:
     nodePort: 30877
 
-# 두 CronJob 이 같은 시각에 돌면 한 노드의 CPU·메모리를 다툰다. api 쪽(03:00)과 시각을 엇갈린다.
+# 두 CronJob 이 같은 시각에 돌면 한 노드의 CPU·메모리를 다툰다. api 쪽과 시각을 엇갈린다.
 sync:
   schedule: "0 4 * * *"
 
