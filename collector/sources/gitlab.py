@@ -26,7 +26,7 @@ def list_repos() -> list[Repo]:
 
 
 def git_auth() -> tuple[str, str]:
-    """git 이 HTTPS 로 받을 때 쓸 (사용자 이름, 비밀번호). 토큰에는 read_repository 스코프가 필요하다."""
+    """git 이 HTTPS 로 받을 때 쓸 (사용자 이름, 비밀번호). read_api 스코프에 코드 내려받기 권한이 들어 있어 그것으로 된다."""
     return "oauth2", os.environ["GITLAB_TOKEN"]
 
 

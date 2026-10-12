@@ -55,7 +55,7 @@ api 를 갈아엎지 않고 나란히 두어 환경변수만 바꾸면 오갈 �
 |---|---|---|
 | 서버에 두는 것 | md 파일 | 리포 전체와 이력 |
 | MCP서버 도구 | `search_docs` | `search_docs`, `search_code`, `read_code`, `code_history` |
-| GitLab 토큰 스코프 | `read_api` | `read_api` + `read_repository` |
+| GitLab 토큰 스코프 | `read_api` | `read_api` (clone·fetch 도 된다) |
 | `DOCS_DIR` (헬름) | `/data/docs` | `/data/repos` |
 
 ## 시스템 구조
@@ -104,7 +104,7 @@ rag-git-docs/
 │
 ├── charts/
 │   └── rag-git-docs/     1·2·3 을 띄우는 Helm 차트 소스. 1·2 는 CronJob, 3 은 Deployment. values.yaml 은 기본값
-├── deploy/               이 환경(EC2 k3s)에 배포하는 것
+├── deploy/               실제 배포 환경에 설치하는 값과 패키지
 │   ├── packages/         설치할 차트 패키지. rag-git-docs 는 helm package 로 만들고, Qdrant 는 공식에서 받는다
 │   ├── qdrant.values.yaml           Qdrant 차트 기본값 위에 덮어쓰는 이 환경의 값
 │   ├── qdrant.clone.values.yaml     clone 모드 릴리스용 Qdrant 의 값. 이 파일 하나로 설치한다
@@ -126,7 +126,7 @@ rag-git-docs/
 
 ```bash
 # 이미지. 태그는 deploy/rag-git-docs.values.yaml 의 image.tag 와 맞춘다
-docker build -t private.docker.wai/yunan/rag-git-docs:0.5.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.5.0
+docker build -t private.docker.wai/yunan/rag-git-docs:0.6.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.6.0
 
 # 차트 패키지. 차트 템플릿을 고쳤을 때만 Chart.yaml 의 version 을 올리고 다시 만든다
 helm package charts/rag-git-docs -d deploy/packages
@@ -183,23 +183,24 @@ clone 용 values 는 api 용과 같은 항목을 모두 적은 별도 파일이�
 **한 릴리스에서 갈아끼우기.** `env` 의 `COLLECT_MODE` 와 `DOCS_DIR` 을 함께 바꾸고 upgrade 한다.
 두 방식은 같은 볼륨 안에서 다른 디렉터리(`/data/docs`, `/data/repos`)를 쓰므로, 되돌리면 각자의 데이터를 이어서 쓴다.
 
-clone 은 첫 수집에 리포 전체를 이력까지 받으므로 오래 걸린다. 그 전에 GitLab 토큰에 `read_repository` 스코프를 더하고, 볼륨에 리포 전체가 들어갈 여유가 있는지 확인한다.
+clone 은 첫 수집에 리포 전체를 이력까지 받으므로 오래 걸린다. 그 전에 볼륨에 리포 전체가 들어갈 여유가 있는지 확인한다.
+GitLab 토큰은 api 와 같은 `read_api` 스코프로 된다. GitLab 이 `read_api` 에 코드 내려받기 권한을 포함하기 때문이다.
 local-path 처럼 크기를 강제하지 않는 스토리지라면 실제 한도는 노드 디스크다.
 
 ## Claude Code 와 연동하기
 
-MCP서버는 NodePort 로 EC2 의 `30876` 포트에 열린다. EC2 보안그룹에서 이 포트를 내 IP 에만 연다.
+MCP서버는 NodePort 로 노드의 `30876` 포트에 열린다. 방화벽(클라우드라면 보안그룹)에서 이 포트를 쓰는 사람의 IP 에만 연다.
 요청마다 MCP서버 토큰을 확인한다. 토큰은 사람마다 따로 주며, 만들고 바꾸는 법은 아래 "MCP서버 토큰 관리"에 있다.
 
 각자 받은 토큰으로 붙는다. 토큰을 환경변수에 두고 넘기면 명령 기록에 남지 않는다.
 
 ```bash
 read -rsp "토큰: " t && echo "export GIT_DOCS_TOKEN=$t" >> ~/.bashrc && unset t    # 새 터미널부터 적용된다
-claude mcp add --transport http --scope user git-docs http://<EC2 주소>:30876/mcp \
+claude mcp add --transport http --scope user git-docs http://<노드 주소>:30876/mcp \
   --header "Authorization: Bearer $GIT_DOCS_TOKEN"
 ```
 
-토큰과 검색 내용이 평문 HTTP 로 오간다. 보안그룹을 넓게 열 거면 앞에 TLS 를 둔다.
+토큰과 검색 내용이 평문 HTTP 로 오간다. 접근을 넓게 열 거면 앞에 TLS 를 둔다.
 clone 방식이면 이 토큰으로 코드까지 읽을 수 있으므로 특히 그렇다.
 
 ### MCP서버 토큰 관리
