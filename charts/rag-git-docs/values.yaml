@@ -41,7 +41,7 @@ qdrant:
 # 이미 만들어 둔 Secret 을 쓰려면 existingSecret 에 그 이름을 적는다.
 existingSecret: ""
 # 예: {SERVE_TOKEN: ..., GITLAB_TOKEN: ...}
-# SERVE_TOKEN 이 없으면 검색 서버가 뜨지 않는다.
+# SERVE_TOKEN 은 사람마다 '이름:토큰' 을 쉼표로 잇는다. 없으면 검색 서버가 뜨지 않는다.
 secretEnv: {}
 
 # 검색 서버(serve.py). Claude Code 가 MCP 로 붙어 문서를 검색한다.

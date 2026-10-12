@@ -15,7 +15,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY collect.py collect_api.py collect_clone.py index.py serve.py ./
+COPY collect.py collect_api.py collect_clone.py index.py serve.py auth.py ./
 COPY collector collector
 COPY cloner cloner
 COPY indexer indexer
