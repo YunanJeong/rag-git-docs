@@ -1,11 +1,22 @@
 # 운영 가이드
 
-rag-git-docs 를 설치하고 관리하는 사람을 위한 문서다. 팀원이 MCP서버에 붙는 방법은 [README](../README.md#사용하기--claude-code-에-붙기) 에 있다.
+rag-git-docs 를 설치하고 관리하는 사람을 위한 문서다. 쓰는 사람에게 안내할 연결 방법과 사용법은 [사용 가이드](usage.md)에 있다.
 
 ## 설치
 
+설치 전에 values 파일(api 릴리스는 `deploy/rag-git-docs.values.yaml`, clone 릴리스는 `deploy/rag-git-docs.clone.values.yaml`)과 비밀값 파일의 다음 값을 환경에 맞게 채운다.
+
+| 값 | 내용 |
+|---|---|
+| `image.repository`, `image.tag` | 아래에서 빌드해 올린 이미지 |
+| `sync.env.SOURCE` | 문서를 받아 올 곳. `gitlab` 또는 `github` |
+| `sync.env.GITLAB_URL`, `sync.env.GITLAB_GROUP` | GitLab 이면 GitLab 주소와 수집할 그룹 경로. 하위 그룹까지 수집한다 |
+| `sync.env.GITHUB_OWNER` | GitHub 이면 수집할 계정이나 조직 이름 |
+| 비밀값 파일의 `SERVE_TOKEN` | 팀원별 MCP서버 토큰. 아래 "토큰 관리" |
+| 비밀값 파일의 `GITLAB_TOKEN` 또는 `GITHUB_TOKEN` | 수집용 PAT |
+
 ```bash
-# 이미지. 태그는 deploy/rag-git-docs.values.yaml 의 image.tag 와 맞춘다
+# 이미지. 태그는 values 의 image.tag 와 맞춘다
 docker build -t private.docker.wai/yunan/rag-git-docs:0.6.0 . && docker push private.docker.wai/yunan/rag-git-docs:0.6.0
 
 # 차트 패키지. 차트 템플릿을 고쳤을 때만 Chart.yaml 의 version 을 올리고 다시 만든다
@@ -20,9 +31,11 @@ helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag \
   -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
+설치가 끝나면 쓰는 사람에게 MCP서버 주소(`http://<노드 주소>:<serve.service.nodePort>/mcp`)와 각자의 토큰을 보안 채널로 주고, [사용 가이드](usage.md)를 안내한다.
+
 ### 앱만 바뀌었을 때
 
-차트는 그대로 두고 이미지만 새 태그로 올린 뒤, `deploy/rag-git-docs.values.yaml` 의 `image.tag` 를 바꿔 upgrade 한다.
+차트는 그대로 두고 이미지만 새 태그로 올린 뒤, values 의 `image.tag` 를 바꿔 upgrade 한다.
 
 ```bash
 helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag \
@@ -31,7 +44,7 @@ helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag \
 
 ### 수집·색인을 지금 한 번 돌리기
 
-설치 직후처럼 03:00 를 기다릴 수 없을 때 CronJob 의 설정 그대로 Job 을 하나 만든다.
+설치 직후처럼 정해진 시각을 기다릴 수 없을 때 CronJob 의 설정 그대로 Job 을 하나 만든다.
 
 ```bash
 kubectl -n rag create job --from=cronjob/rag-git-docs-sync sync-now
@@ -41,17 +54,16 @@ kubectl -n rag delete job sync-now    # 같은 이름으로 다시 만들려면 
 
 ## 수집 방식 고르기
 
-환경변수 `COLLECT_MODE` 로 `api` 와 `clone` 중 하나를 고른다. 둘의 차이는 기술보다 **보안과 품질 사이의 선택**이다.
-
+values 의 `env.COLLECT_MODE` 로 `api` 와 `clone` 중 하나를 고른다. 둘의 차이는 기술보다 **보안과 품질 사이의 선택**이다.
 
 ### `api` — md only. 보안을 우선한다
 
-REST API 로 리포마다 `.md` 파일만 받는다. 코드는 받지 않는다.
+GitLab·GitHub 의 REST API 로 리포마다 `.md` 파일만 받는다. 코드는 받지 않는다.
 
 - **서버에 남는 것이 md 본문뿐이다.** 코드도, `.git` 에 딸려 오는 전체 파일 목록·커밋 메시지·작성자 이메일·과거 이력도 없다.
   서버나 볼륨, 그 백업이 새어 나가도 유출 범위가 문서에서 그친다.
 - **코드에 실수로 커밋된 비밀번호·키가 들어오지 않는다.** 이력을 받지 않으니, 지운 줄 알았던 시크릿도 들어오지 않는다.
-- **MCP서버 토큰이 새어도 피해가 작다.** 쓸 수 있는 도구가 문서 조각 검색(`search_docs`) 하나뿐이다. 코드를 읽는 도구가 없다.
+- **`SERVE_TOKEN` 이 새어도 피해가 작다.** 쓸 수 있는 도구가 문서 조각 검색(`search_docs`) 하나뿐이다. 코드를 읽는 도구가 없다.
 - 대신 코드로만 답할 수 있는 질문에는 답하지 못한다.
   바뀐 것만 받기, 지운 문서 지우기, 문서별 날짜 구하기를 직접 짠 코드와 API 호출로 한다.
 
@@ -69,20 +81,19 @@ MCP서버에 코드 도구 `search_code`, `read_code`, `code_history` 가 더해
   - 볼륨과 그 백업에 사내 코드 전체와 이력의 사본이 생긴다.
   - 실수로 커밋된 시크릿이 이력째 들어온다. 이미 지운 것도 들어오고, `code_history` 로 과거 변경 내용을 볼 수 있다.
   - 커밋 메시지와 작성자 이름이 MCP서버로 보인다. 작성자 이메일은 주지 않는다.
-  - MCP서버 토큰만 있으면, 수집 계정이 볼 수 있는 모든 리포의 코드를 `read_code` 로 반복해 옮겨 적을 수 있다.
+  - `SERVE_TOKEN` 만 있으면, 수집 계정이 볼 수 있는 모든 리포의 코드를 `read_code` 로 반복해 옮겨 적을 수 있다.
     토큰 관리와 네트워크 접근 제한을 api 보다 엄격하게 해야 한다.
   - 리포별 권한을 나누지 않는다. 쓰는 사람 모두가 대상 리포를 다 볼 수 있다는 전제다.
 - 디스크가 대상 리포의 저장소 크기 합계에 작업 트리만큼을 더한 만큼 든다.
 
 코드 사본을 서버에 둬도 되는지는 조직의 보안 정책에 따라 정한다.
-두 방식은 환경변수만 바꾸면 오갈 수 있고, 같은 볼륨 안에서 다른 디렉터리를 쓰므로(`/data/docs`, `/data/repos`) 되돌리면 각자의 데이터를 이어서 쓴다.
 
 | | `api` | `clone` |
 |---|---|---|
-| 서버에 두는 것 | md 파일 | 리포 전체와 이력 |
-| MCP서버 도구 | `search_docs` | `search_docs`, `search_code`, `read_code`, `code_history` |
-| GitLab 토큰 스코프 | `read_api` | `read_api` (clone·fetch 도 된다) |
-| `DOCS_DIR` (헬름) | `/data/docs` | `/data/repos` |
+| `env.DOCS_DIR` | `/data/docs` | `/data/repos` |
+| 수집용 `GITLAB_TOKEN` 스코프 | `read_api` | `read_api`. GitLab 이 이 스코프에 코드 내려받기 권한을 포함한다 |
+| 수집용 `GITHUB_TOKEN` 권한 | 비공개 리포면 Contents 읽기(classic PAT 면 `repo`) | api 와 같다 |
+| `persistence.docs.size` | md 사본이라 작다 | 리포 저장소 크기 합계에 작업 트리만큼을 더해 잡는다 |
 
 ### 차트와 릴리스
 
@@ -92,43 +103,36 @@ MCP서버에 코드 도구 `search_code`, `read_code`, `code_history` 가 더해
 **두 방식을 동시에 띄우기.** 네임스페이스와 릴리스를 나누면 볼륨·Service·Secret 이 따로 생겨 한 노드에서도 서로 격리된다.
 Qdrant 도 네임스페이스마다 하나씩 띄운다. 겹치는 것은 클러스터 전체에서 하나뿐인 노드 포트와 CronJob 시각이라, clone 용 values 가 이것만 바꾼다.
 
-clone 버전 실행 예시:
-
 ```bash
 kubectl create ns rag-clone
 helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag-clone -f deploy/qdrant.clone.values.yaml
 helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
 
 # 첫 수집을 바로 돌린다
-kubectl -n rag-clone create job --from=cronjob/rag-git-docs-sync sync-now 
+kubectl -n rag-clone create job --from=cronjob/rag-git-docs-sync sync-now
 ```
 
 clone 용 values 는 api 용과 같은 항목을 모두 적은 별도 파일이라, 그 파일 하나로 설치한다. api 용과 다른 값은 수집 방식, MCP서버·Qdrant 의 노드 포트, CronJob 시각, Qdrant 별칭(`QDRANT_ALIAS`), 볼륨 크기다.
 
 **한 릴리스에서 갈아끼우기.** `env` 의 `COLLECT_MODE` 와 `DOCS_DIR` 을 함께 바꾸고 upgrade 한다.
-두 방식은 같은 볼륨 안에서 다른 디렉터리(`/data/docs`, `/data/repos`)를 쓰므로, 되돌리면 각자의 데이터를 이어서 쓴다.
+두 방식은 같은 볼륨 안에서 다른 디렉터리를 쓰므로, 되돌리면 각자의 데이터를 이어서 쓴다.
 
 clone 은 첫 수집에 리포 전체를 이력까지 받으므로 오래 걸린다. 그 전에 볼륨에 리포 전체가 들어갈 여유가 있는지 확인한다.
-GitLab 토큰은 api 와 같은 `read_api` 스코프로 된다. GitLab 이 `read_api` 에 코드 내려받기 권한을 포함하기 때문이다.
 local-path 처럼 크기를 강제하지 않는 스토리지라면 실제 한도는 노드 디스크다.
 
 ## 인증 — 사용자별 토큰
 
-MCP서버는 NodePort 로 노드의 `30876` 포트에 열린다. 방화벽(클라우드라면 보안그룹)에서 이 포트를 쓰는 사람의 IP 에만 연다.
-요청마다 MCP서버 토큰을 확인한다. 토큰은 사람마다 따로 만들어 본인에게 보안 채널로 준다.
-
-토큰과 검색 내용이 평문 HTTP 로 오간다. 접근을 넓게 열 거면 앞에 TLS 를 둔다.
-clone 방식이면 이 토큰으로 코드까지 읽을 수 있으므로 특히 그렇다.
+MCP서버는 요청마다 `Authorization: Bearer` 헤더의 토큰을 `SERVE_TOKEN` 목록과 대조한다. 토큰은 사람마다 따로 만들어 본인에게 보안 채널로 준다.
 
 ### 토큰 관리
 
-토큰은 `deploy/rag-git-docs.secret.yaml` 의 `SERVE_TOKEN` 한 곳에서 관리한다. 사람마다 `이름:토큰` 을 쉼표로 잇는다.
+토큰은 `deploy/rag-git-docs.secret.yaml` 의 `SERVE_TOKEN` 한 곳에서 관리한다.
 
 ```yaml
 SERVE_TOKEN: "kim:<토큰>,lee:<토큰>,park:<토큰>"
 ```
 
-- 이름은 서버 쪽 꼬리표다. 사용자는 토큰만 쓰고, MCP서버는 받은 토큰으로 이름을 찾아 로그에 남긴다. 로그에 토큰 대신 이름이 찍히고, 이 파일에서 누구의 토큰인지 가려 한 사람만 고칠 수 있다.
+- 이름은 서버 쪽 꼬리표다. 팀원은 토큰만 쓰고, MCP서버는 받은 토큰으로 이름을 찾아 로그에 남긴다. 로그에 토큰 대신 이름이 찍히고, 이 파일에서 누구의 토큰인지 가려 한 사람만 고칠 수 있다.
 - 형식이 틀리거나 이름·토큰이 겹치면 MCP서버가 뜨지 않는다.
 
 | 할 일 | 방법 |
@@ -136,7 +140,7 @@ SERVE_TOKEN: "kim:<토큰>,lee:<토큰>,park:<토큰>"
 | 토큰 만들기 | `openssl rand -hex 32` |
 | 사람 더하기 | 끝에 `,이름:새토큰` 을 붙이고 upgrade 한 뒤, 토큰을 본인에게 보안 채널로 준다 |
 | 사람 빼기 | 그 항목을 지우고 upgrade 한다. 그 토큰은 바로 401 이 된다 |
-| 토큰 바꾸기·유출 대응 | 그 사람의 토큰만 새로 만들어 바꾸고 upgrade 한다. 본인은 `claude mcp remove git-docs` 후 새 토큰으로 다시 add 한다 |
+| 토큰 바꾸기·유출 대응 | 그 사람의 토큰만 새로 만들어 바꾸고 upgrade 한다. 본인이 할 일은 [사용 가이드의 연결 관리](usage.md#연결-관리)에 있다 |
 
 upgrade 는 이 파일을 쓰는 릴리스마다 한다. 두 방식을 같이 띄웠다면 둘 다 한다.
 
@@ -148,10 +152,19 @@ helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f
 토큰이 바뀌면 MCP서버 파드가 저절로 다시 뜨고, 다른 사람의 연결은 그대로다.
 `secretEnv` 대신 `existingSecret` 으로 Secret 을 따로 관리한다면 저절로 다시 뜨지 않으므로 `kubectl -n <네임스페이스> rollout restart deploy/rag-git-docs-serve` 를 한다.
 
-**누가 무엇을 불렀는지 보기.** 도구를 부를 때마다 MCP서버 로그에 `시각 이름 도구 인자` 가 한 줄씩 남는다.
+## 네트워크
+
+MCP서버는 NodePort 로 노드의 `serve.service.nodePort` 포트에 열린다. 방화벽(클라우드라면 보안그룹)에서 이 포트를 쓰는 사람의 IP 에만 연다.
+
+Claude Code 와 MCP서버 사이에는 `SERVE_TOKEN` 과 질문·검색 결과가 평문 HTTP 로 오간다. 접근을 넓게 열 거면 앞에 TLS 를 둔다.
+clone 방식이면 이 토큰으로 코드까지 읽을 수 있으므로 특히 그렇다.
+
+## 로그 — 누가 무엇을 불렀나
+
+도구를 부를 때마다 MCP서버 로그에 `시각 이름 도구 인자` 가 한 줄씩 남는다. 이름은 `SERVE_TOKEN` 의 이름이다.
 
 ```bash
-kubectl -n rag-clone logs deploy/rag-git-docs-serve | grep read_code
+kubectl -n rag logs deploy/rag-git-docs-serve | grep read_code
 ```
 ```
 2026-10-12 14:03:11 kim search_docs {'query': '배포 롤백 절차'}

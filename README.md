@@ -6,11 +6,35 @@ AI 는 기술의 일반적인 맥락에는 밝지만, 조직의 비즈니스 맥
 같은 질문에도 "보통은 이렇게 한다"와 "우리는 이렇게 한다"는 다를 때가 많고, 실무에 필요한 답은 늘 후자다.
 
 농담 반 진담 반으로, Git 은 경력 개발자의 뇌를 대체한다고 한다.
-무엇을 왜 그렇게 만들었는지, 어떻게 배포하고 장애 때 무엇을 했는지가 사람의 기억이 아니라 리포의 문서와 코드, 이력에 남기 때문이다.
-AI 가 모르는 조직의 맥락이 이미 Git 에 기록으로 쌓여 있는 셈이니, Git 만큼 RAG 를 붙이기 좋은 곳도 드물다.
+무엇을 왜 그렇게 만들었고 장애 때 무엇을 했는지가 사람의 기억이 아니라 리포의 문서와 코드, 커밋 이력에 남는다.
+AI 가 모르는 조직의 맥락이 이미 거기 적혀 있다.
 
-이 프로젝트는 리포들에 흩어진 md 문서를 모아 Qdrant Vector DB 에 색인하고, Claude Code 가 MCP서버를 통해 질문에 맞는 조각만 찾아 쓰게 한다.
-**색인하는 것은 문서뿐이다.** `clone` 모드에서는 리포 전체와 git 이력을 받아 두고, 문서로 답이 안 될 때 코드와 변경 이력을 직접 분석하는 MCP tool(`search_code`, `read_code`, `code_history`)을 함께 제공한다.
+이 프로젝트는 리포들에 흩어진 md 문서를 모아 색인하고, Claude Code 가 질문에 맞는 조각만 찾아 쓰게 한다.
+**색인하는 것은 문서뿐이다.** `clone` 모드는 리포 전체를 이력까지 받아 두고, 문서로 답이 안 될 때 코드를 직접 분석하는 도구(`search_code`, `read_code`, `code_history`)를 더한다.
+
+## 빠른 연결
+
+운영자에게 MCP서버 주소와 본인 토큰을 받는다. 토큰을 환경변수에 두고 넘기면 명령 기록에 남지 않는다.
+
+```bash
+read -rsp "토큰: " t && echo "export GIT_DOCS_TOKEN=$t" >> ~/.bashrc && unset t    # 새 터미널부터 적용된다
+claude mcp add --transport http --scope user git-docs http://<MCP서버 주소>/mcp \
+  --header "Authorization: Bearer $GIT_DOCS_TOKEN"
+```
+
+Claude Code 의 `/mcp` 에 Connected 로 보이면 된다.
+
+무엇을 물을 수 있나, 어떻게 답하나, 토큰을 새로 받았을 때는 [사용 가이드(docs/usage.md)](docs/usage.md)에 있다.
+
+## 시스템 구조
+
+쿠버네티스 네임스페이스 하나에 아래가 한 벌 뜬다. 진한 선은 질문할 때, 회색 선은 매일 수집·색인할 때의 흐름이고, 점선은 `clone` 방식에만 있다.
+
+![시스템 구조](docs/architecture.svg)
+
+- **색인되는 것은 md 조각뿐이다.** 코드는 Qdrant 에 들어가지 않고, clone 일 때 MCP서버가 볼륨의 git 저장소를 직접 읽는다.
+- **수집·색인과 MCP서버는 볼륨과 Qdrant 로만 이어진다.** 수집이 도는 동안에도 검색은 별칭으로 이전 컬렉션을 읽어 끊기지 않는다.
+- **질문할 때는 git 호스팅을 부르지 않는다.** 호스팅에는 하루 한 번 수집할 때만 붙는다.
 
 ## 두 가지 수집 방식 — `api` 와 `clone`
 
@@ -25,15 +49,27 @@ AI 가 모르는 조직의 맥락이 이미 Git 에 기록으로 쌓여 있는 �
 
 환경변수 `COLLECT_MODE` 로 고른다. 장단점 상세와 운영 방법은 [운영 가이드](docs/operations.md#수집-방식-고르기)에 있다.
 
-## 시스템 구조
+## 빠른 설치
 
-수집 방식마다 네임스페이스 하나에 아래가 한 벌씩 뜬다. 진한 선은 질문할 때, 회색 선은 매일 수집·색인할 때의 흐름이고, 점선은 `clone` 에만 있다.
+쿠버네티스에 Helm 으로 설치한다. 가장 짧은 경로는 이렇다.
 
-![시스템 구조](docs/architecture.svg)
+```bash
+helm package charts/rag-git-docs -d deploy/packages
+helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag --create-namespace -f deploy/qdrant.values.yaml
+cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml    # SERVE_TOKEN 과 수집용 토큰을 채운다
+helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
+```
 
-- **색인되는 것은 md 조각뿐이다.** 코드는 Qdrant 에 들어가지 않고, clone 일 때 MCP서버가 볼륨의 git 저장소를 직접 읽는다.
-- **수집·색인과 MCP서버는 볼륨과 Qdrant 로만 이어진다.** 수집이 도는 동안에도 검색은 별칭으로 이전 컬렉션을 읽어 끊기지 않는다.
-- **질문할 때는 git 호스팅을 부르지 않는다.** 호스팅에는 하루 한 번 수집할 때만 붙는다.
+이미지 빌드, values 에 채울 값, 업그레이드, 수집 방식 고르기, 토큰 관리, 로그, 로컬 실행은 [운영 가이드(docs/operations.md)](docs/operations.md)에 있다.
+
+## 문서
+
+| 문서 | 읽는 사람 | 내용 |
+|---|---|---|
+| [docs/usage.md](docs/usage.md) | 쓰는 사람 | 연결, 물어볼 수 있는 것, 답하는 방식, 문제 해결 |
+| [docs/operations.md](docs/operations.md) | 운영하는 사람 | 설치·업그레이드, 수집 방식, 토큰 관리, 네트워크, 로그, 로컬 실행 |
+| [docs/design.md](docs/design.md) | 코드를 고치는 에이전트 | 설계 기록과 결정 이유 |
+| [docs/proposal-git-clone.md](docs/proposal-git-clone.md) | 누구나 | clone 방식 검토 기록과 결정 사항 |
 
 ## 코드 구조
 
@@ -83,29 +119,14 @@ rag-git-docs/
 ├── tests/                지울 파일 판정, md 자르기, clone 기록과 git 동작 테스트
 └── docs/
     ├── architecture.svg          시스템 구조도. README 의 "시스템 구조"에 보인다
-    ├── operations.md             운영 가이드. 설치·업그레이드·토큰 관리·로그
+    ├── usage.md                  사용 가이드. 연결·질문·답하는 방식·문제 해결
+    ├── operations.md             운영 가이드. 설치·업그레이드·수집 방식·토큰 관리·네트워크·로그
     ├── design.md                 설계 기록. 에이전트가 코드를 고치기 전에 읽는다
     └── proposal-git-clone.md     clone 방식 검토 기록과 결정 사항
 ```
 
-`serve.py` 는 `indexer/` 의 `embed.py` 와 `store.py` 를 가져다 쓴다. 질문을 문서와 비교하려면
-색인 때와 같은 모델로 질문도 벡터로 바꿔야 하고, 색인과 같은 Qdrant 컬렉션을 읽어야 하기 때문이다.
-
-## 사용하기 — Claude Code 에 붙기
-
-운영자에게 MCP서버 주소와 본인 토큰을 받는다. 토큰을 환경변수에 두고 넘기면 명령 기록에 남지 않는다.
-
-```bash
-read -rsp "토큰: " t && echo "export GIT_DOCS_TOKEN=$t" >> ~/.bashrc && unset t    # 새 터미널부터 적용된다
-claude mcp add --transport http --scope user git-docs http://<MCP서버 주소>/mcp \
-  --header "Authorization: Bearer $GIT_DOCS_TOKEN"
-```
-
-Claude Code 의 `/mcp` 에 Connected 로 보이면 된다. 토큰을 새로 받았으면 `claude mcp remove git-docs` 후 새 토큰으로 다시 add 한다.
-
-## 설치와 운영
-
-설치, 업그레이드, 수집 방식 고르기, 토큰 관리, 로그 보기, 로컬 실행은 [운영 가이드(docs/operations.md)](docs/operations.md)에 있다.
+`serve.py` 는 `indexer/` 의 `embed.py` 와 `store.py` 를 가져다 쓴다.
+질문을 문서와 비교하려면 색인 때와 같은 모델로 질문도 벡터로 바꿔야 하고, 색인과 같은 Qdrant 컬렉션을 읽어야 하기 때문이다.
 
 ## 왜 Qdrant 에 바로 붙지 않고 MCP서버를 거치나
 
