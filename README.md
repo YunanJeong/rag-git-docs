@@ -58,7 +58,17 @@ api 를 갈아엎지 않고 나란히 두어 환경변수만 바꾸면 오갈 �
 | GitLab 토큰 스코프 | `read_api` | `read_api` + `read_repository` |
 | `DOCS_DIR` (헬름) | `/data/docs` | `/data/repos` |
 
-## 구조
+## 시스템 구조
+
+수집 방식마다 네임스페이스 하나에 아래가 한 벌씩 뜬다. 진한 선은 질문할 때, 회색 선은 매일 수집·색인할 때의 흐름이고, 점선은 `clone` 에만 있다.
+
+![시스템 구조](docs/architecture.svg)
+
+- **색인되는 것은 md 조각뿐이다.** 코드는 Qdrant 에 들어가지 않고, clone 일 때 MCP서버가 볼륨의 git 저장소를 직접 읽는다.
+- **수집·색인과 MCP서버는 볼륨과 Qdrant 로만 이어진다.** 수집이 도는 동안에도 검색은 별칭으로 이전 컬렉션을 읽어 끊기지 않는다.
+- **질문할 때는 git 호스팅을 부르지 않는다.** 호스팅에는 하루 한 번 수집할 때만 붙는다.
+
+## 코드 구조
 
 실행 파일 셋이 번호 순서로 돈다. 1·2 는 매일 한 번, 3 은 계속 떠 있다.
 수집(`collector/`·`cloner/`)과 색인(`indexer/`)은 서로 import 하지 않는다. 둘을 잇는 것은 실행 파일뿐이다.
@@ -71,6 +81,7 @@ rag-git-docs/
 ├── index.py              2. DOCS_DIR 의 md 를 Qdrant 에 색인한다. 수집 방식을 모른다    → indexer/
 ├── serve.py              3. MCP서버. Claude Code 의 질문으로 Qdrant 에서 관련 조각을 찾아 준다
 │                            clone 이면 코드 도구(search_code, read_code, code_history)도 노출한다 → cloner/code.py
+├── auth.py                  MCP서버의 사용자별 토큰 확인과, 누가 어떤 도구를 불렀는지 남기는 로그
 │
 ├── collector/            api 방식. git 호스팅에서 md 를 내려받아 DOCS_DIR 에 둔다
 │   ├── sources/          GitLab·GitHub API 호출. 호스팅마다 파일 하나. clone 도 리포 목록·인증은 여기서 받는다
@@ -103,6 +114,7 @@ rag-git-docs/
 ├── infra/                서버 테라폼 (예정)
 ├── tests/                지울 파일 판정, md 자르기, clone 기록과 git 동작 테스트
 └── docs/
+    ├── architecture.svg          시스템 구조도. README 의 "시스템 구조"에 보인다
     ├── design.md                 왜 이렇게 만들었는지에 대한 기록. 코드를 고치기 전에 읽는다
     └── proposal-git-clone.md     clone 방식 검토 기록과 결정 사항
 ```
@@ -177,15 +189,58 @@ local-path 처럼 크기를 강제하지 않는 스토리지라면 실제 한도
 ## Claude Code 와 연동하기
 
 MCP서버는 NodePort 로 EC2 의 `30876` 포트에 열린다. EC2 보안그룹에서 이 포트를 내 IP 에만 연다.
-요청마다 `rag-git-docs.secret.yaml` 에 넣은 MCP서버 토큰(`SERVE_TOKEN`)을 확인한다.
+요청마다 MCP서버 토큰을 확인한다. 토큰은 사람마다 따로 주며, 만들고 바꾸는 법은 아래 "MCP서버 토큰 관리"에 있다.
+
+각자 받은 토큰으로 붙는다. 토큰을 환경변수에 두고 넘기면 명령 기록에 남지 않는다.
 
 ```bash
+read -rsp "토큰: " t && echo "export GIT_DOCS_TOKEN=$t" >> ~/.bashrc && unset t    # 새 터미널부터 적용된다
 claude mcp add --transport http --scope user git-docs http://<EC2 주소>:30876/mcp \
-  --header "Authorization: Bearer <SERVE_TOKEN>"
+  --header "Authorization: Bearer $GIT_DOCS_TOKEN"
 ```
 
 토큰과 검색 내용이 평문 HTTP 로 오간다. 보안그룹을 넓게 열 거면 앞에 TLS 를 둔다.
 clone 방식이면 이 토큰으로 코드까지 읽을 수 있으므로 특히 그렇다.
+
+### MCP서버 토큰 관리
+
+토큰은 `deploy/rag-git-docs.secret.yaml` 의 `SERVE_TOKEN` 한 곳에서 관리한다. 사람마다 `이름:토큰` 을 쉼표로 잇는다.
+
+```yaml
+SERVE_TOKEN: "kim:<토큰>,lee:<토큰>,park:<토큰>"
+```
+
+- 이름은 서버 쪽 꼬리표다. 사용자는 토큰만 쓰고, MCP서버는 받은 토큰으로 이름을 찾아 로그에 남긴다. 로그에 토큰 대신 이름이 찍히고, 이 파일에서 누구의 토큰인지 가려 한 사람만 고칠 수 있다.
+- 형식이 틀리거나 이름·토큰이 겹치면 MCP서버가 뜨지 않는다.
+
+| 할 일 | 방법 |
+|---|---|
+| 토큰 만들기 | `openssl rand -hex 32` |
+| 사람 더하기 | 끝에 `,이름:새토큰` 을 붙이고 upgrade 한 뒤, 토큰을 본인에게 보안 채널로 준다 |
+| 사람 빼기 | 그 항목을 지우고 upgrade 한다. 그 토큰은 바로 401 이 된다 |
+| 토큰 바꾸기·유출 대응 | 그 사람의 토큰만 새로 만들어 바꾸고 upgrade 한다. 본인은 `claude mcp remove git-docs` 후 새 토큰으로 다시 add 한다 |
+
+upgrade 는 이 파일을 쓰는 릴리스마다 한다. 두 방식을 같이 띄웠다면 둘 다 한다.
+
+```bash
+helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
+helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
+```
+
+토큰이 바뀌면 MCP서버 파드가 저절로 다시 뜨고, 다른 사람의 연결은 그대로다.
+`secretEnv` 대신 `existingSecret` 으로 Secret 을 따로 관리한다면 저절로 다시 뜨지 않으므로 `kubectl -n <네임스페이스> rollout restart deploy/rag-git-docs-serve` 를 한다.
+
+**누가 무엇을 불렀는지 보기.** 도구를 부를 때마다 MCP서버 로그에 `시각 이름 도구 인자` 가 한 줄씩 남는다.
+
+```bash
+kubectl -n rag-clone logs deploy/rag-git-docs-serve | grep read_code
+```
+```
+2026-10-12 14:03:11 kim search_docs {'query': '배포 롤백 절차'}
+2026-10-12 14:03:40 lee read_code {'repo': 'g/api', 'path': 'app.py', 'start': 1, 'end': 0}
+```
+
+로그는 파드가 다시 뜨면 사라진다. 오래 둘 기록이 필요하면 로그 수집을 따로 붙인다.
 
 ### 왜 Qdrant 에 바로 붙지 않고 MCP서버를 거치나
 
