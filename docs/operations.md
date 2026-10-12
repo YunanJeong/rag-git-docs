@@ -95,30 +95,18 @@ MCP서버에 코드 도구 `search_code`, `read_code`, `code_history` 가 더해
 | 수집용 `GITHUB_TOKEN` 권한 | 비공개 리포면 Contents 읽기(classic PAT 면 `repo`) | api 와 같다 |
 | `persistence.docs.size` | md 사본이라 작다 | 리포 저장소 크기 합계에 작업 트리만큼을 더해 잡는다 |
 
-### 차트와 릴리스
+### clone 모드로 띄우기
 
-차트는 수집 방식을 모른다. values 의 `env` 를 수집·색인 CronJob 과 MCP서버에 그대로 환경변수로 넣을 뿐이다.
-그래서 방식마다 릴리스를 따로 두면 된다.
-
-**두 방식을 동시에 띄우기.** 네임스페이스와 릴리스를 나누면 볼륨·Service·Secret 이 따로 생겨 한 노드에서도 서로 격리된다.
-Qdrant 도 네임스페이스마다 하나씩 띄운다. 겹치는 것은 클러스터 전체에서 하나뿐인 노드 포트와 CronJob 시각이라, clone 용 values 가 이것만 바꾼다.
+네임스페이스와 릴리스를 나눠 clone 용 values 하나로 설치한다. api 릴리스와 볼륨·Service·Secret·Qdrant 가 따로 생긴다.
 
 ```bash
 kubectl create ns rag-clone
 helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag-clone -f deploy/qdrant.clone.values.yaml
 helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
 
-# 첫 수집을 바로 돌린다
+# 첫 수집을 바로 돌린다. 리포 전체를 이력까지 받으므로 오래 걸린다
 kubectl -n rag-clone create job --from=cronjob/rag-git-docs-sync sync-now
 ```
-
-clone 용 values 는 api 용과 같은 항목을 모두 적은 별도 파일이라, 그 파일 하나로 설치한다. api 용과 다른 값은 수집 방식, MCP서버·Qdrant 의 노드 포트, CronJob 시각, Qdrant 별칭(`QDRANT_ALIAS`), 볼륨 크기다.
-
-**한 릴리스에서 갈아끼우기.** `env` 의 `COLLECT_MODE` 와 `DOCS_DIR` 을 함께 바꾸고 upgrade 한다.
-두 방식은 같은 볼륨 안에서 다른 디렉터리를 쓰므로, 되돌리면 각자의 데이터를 이어서 쓴다.
-
-clone 은 첫 수집에 리포 전체를 이력까지 받으므로 오래 걸린다. 그 전에 볼륨에 리포 전체가 들어갈 여유가 있는지 확인한다.
-local-path 처럼 크기를 강제하지 않는 스토리지라면 실제 한도는 노드 디스크다.
 
 ## 인증 — 사용자별 토큰
 
