@@ -161,7 +161,7 @@ kubectl -n rag logs deploy/rag-git-docs-serve | grep read_code
 
 로그는 파드가 다시 뜨면 사라진다. 오래 둘 기록이 필요하면 로그 수집을 따로 붙인다.
 
-## 로컬에서 돌리기
+## 로컬 PC 에서 직접 설치·운영하기
 
 자기 PC 에서 혼자 쓸 때의 절차다. `local.env.example` 이 이 용도의 환경변수 예시다. 검색 서버는 인증 없이(`AUTH_MODE=none`) 이 PC 에서만(`127.0.0.1`) 붙을 수 있게 뜬다. Docker 와, clone 방식이면 git 이 있어야 한다.
 

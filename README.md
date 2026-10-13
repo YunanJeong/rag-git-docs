@@ -52,9 +52,9 @@ Claude Code 의 `/mcp` 에 Connected 로 보이면 된다.
 
 환경변수 `COLLECT_MODE` 로 고른다. 장단점 상세와 운영 방법은 [운영 가이드](docs/operations.md#수집-방식-고르기)에 있다.
 
-## 빠른 설치
+## 서버에 설치하기 (운영자용)
 
-쿠버네티스에 Helm 으로 설치한다. 가장 짧은 경로는 이렇다.
+팀이 함께 쓰는 MCP서버를 쿠버네티스에 Helm 으로 설치한다. 가장 짧은 경로는 이렇다.
 
 ```bash
 helm package charts/rag-git-docs -d deploy/packages
@@ -63,9 +63,12 @@ cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml    # 
 helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
-서버 없이 자기 PC 에서 혼자 돌리려면 [로컬에서 돌리기](docs/operations.md#로컬에서-돌리기)를 따른다.
+이미지 빌드, values 에 채울 값, 업그레이드, 수집 방식 고르기, 토큰 관리, 로그는 [운영 가이드(docs/operations.md)](docs/operations.md)에 있다.
 
-이미지 빌드, values 에 채울 값, 업그레이드, 수집 방식 고르기, 토큰 관리, 로그, 로컬 실행은 [운영 가이드(docs/operations.md)](docs/operations.md)에 있다.
+## 로컬 PC 에서 직접 설치·운영하기
+
+서버 없이 자기 PC 에 전부 설치해 혼자 쓸 때만 해당한다. 이 프로젝트가 기본으로 상정한 사용법은 서버 하나에 여럿이 붙는 위의 [빠른 연결](#빠른-연결)이다.
+절차는 [운영 가이드의 로컬 PC 절](docs/operations.md#로컬-pc-에서-직접-설치운영하기)에 있다.
 
 ## 문서
 
