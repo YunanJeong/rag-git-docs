@@ -4,6 +4,7 @@
     <marker id="a-q" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1e293b"/></marker>
     <marker id="a-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/></marker>
     <marker id="a-s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker>
+    <marker id="a-r" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
   </defs>
 
   <rect width="1560" height="800" fill="#ffffff"/>
@@ -70,10 +71,12 @@
 
   <!-- 수집 -->
   <rect x="1180" y="300" width="170" height="228" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
-  <text x="1265" y="338" text-anchor="middle" font-size="20" font-weight="700" fill="#1e3a8a">수집 · 색인</text>
+  <!-- 주기적으로 도는 작업임을 보이는 순환 화살표 -->
+  <path d="M1219,331 A9,9 0 1 1 1210,322" fill="none" stroke="#2563eb" stroke-width="2.4" stroke-linecap="round" marker-end="url(#a-r)"/>
+  <text x="1280" y="338" text-anchor="middle" font-size="20" font-weight="700" fill="#1e3a8a">수집 · 색인</text>
   <rect x="1190" y="352" width="150" height="28" rx="14" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="1265" y="371" text-anchor="middle" font-size="14" font-weight="700" fill="#5b21b6">bge-m3 · md → 벡터</text>
-  <text x="1265" y="406" text-anchor="middle" font-size="15" fill="#1d4ed8">CronJob · 매일</text>
+  <text x="1265" y="406" text-anchor="middle" font-size="15" fill="#1d4ed8"><tspan font-weight="700">매일 자동 갱신</tspan><tspan font-size="12"> · CronJob</tspan></text>
   <text x="1265" y="436" text-anchor="middle" font-size="15" fill="#1e3a8a">collect.py</text>
   <text x="1265" y="458" text-anchor="middle" font-size="15" fill="#1e3a8a">→ index.py</text>
   <text x="1265" y="490" text-anchor="middle" font-size="14" fill="#3b82f6">api : md 만 받는다</text>
@@ -95,6 +98,7 @@
   <g font-size="14" fill="#64748b" text-anchor="middle">
     <text x="1170" y="238">md 조각 · 벡터</text>
     <text x="1150" y="543">받아 둔다</text>
+    <text x="1400" y="401" font-size="13">매일</text>
   </g>
 
   <!-- 같은 임베딩 모델 표시 (데이터 흐름 아님) -->
