@@ -36,7 +36,7 @@ Claude Code 의 `/mcp` 에 Connected 로 보이면 된다.
 ![시스템 구조](docs/architecture.svg)
 
 - **색인되는 것은 md 조각뿐이다.** 코드는 Qdrant 에 들어가지 않고, clone 일 때 MCP서버가 볼륨의 git 저장소를 직접 읽는다.
-- **수집·색인과 MCP서버는 볼륨과 Qdrant 로만 이어진다.** 수집이 도는 동안에도 검색은 별칭으로 이전 컬렉션을 읽어 끊기지 않는다.
+- **수집·색인과 MCP서버는 볼륨과 Qdrant 로만 이어진다.** 색인은 바뀐 문서의 조각만 새로 넣고 나서 옛 조각을 지우므로, 도는 동안에도 검색이 끊기지 않는다.
 - **질문할 때는 git 호스팅을 부르지 않는다.** 호스팅에는 하루 한 번 수집할 때만 붙는다.
 
 ## 두 가지 수집 방식 — `api` 와 `clone`
@@ -85,7 +85,7 @@ rag-git-docs/
 ├── collect.py            1. COLLECT_MODE 를 보고 아래 둘 중 하나를 부른다
 ├── collect_api.py           api   md 파일만 API 로 DOCS_DIR 에 받는다                   → collector/
 ├── collect_clone.py         clone 리포를 이력까지 DOCS_DIR 에 git clone 해 두고 맞춘다  → cloner/ + collector/sources
-├── index.py              2. DOCS_DIR 의 md 를 Qdrant 에 색인한다. 수집 방식을 모른다    → indexer/
+├── index.py              2. DOCS_DIR 의 md 를 Qdrant 에 색인한다. 바뀐 조각만 임베딩한다. 수집 방식을 모른다 → indexer/
 ├── serve.py              3. MCP서버. Claude Code 의 질문으로 Qdrant 에서 관련 조각을 찾아 준다
 │                            clone 이면 코드 도구(search_code, read_code, code_history)도 노출한다 → cloner/code.py
 ├── auth.py                  MCP서버의 사용자별 토큰 확인과, 누가 어떤 도구를 불렀는지 남기는 로그
@@ -107,7 +107,7 @@ rag-git-docs/
 ├── indexer/              2 단계. md 를 잘라 벡터로 바꿔 Qdrant 에 넣는다
 │   ├── chunk.py          md 를 헤딩마다 잘라 조각으로 만든다
 │   ├── embed.py          조각을 임베딩 모델 bge-m3 로 벡터로 바꾼다
-│   └── store.py          벡터를 Qdrant 에 넣는다. 색인하는 동안에도 검색이 끊기지 않게 한다
+│   └── store.py          지금 md 의 조각과 Qdrant 를 비교해 새 조각만 넣고 사라진 조각을 지운다
 │
 ├── charts/
 │   └── rag-git-docs/     1·2·3 을 띄우는 Helm 차트 소스. 1·2 는 CronJob, 3 은 Deployment. values.yaml 은 기본값
@@ -119,7 +119,7 @@ rag-git-docs/
 │   ├── rag-git-docs.clone.values.yaml   clone 모드 릴리스의 값. 이 파일 하나로 설치한다
 │   └── rag-git-docs.secret.example.yaml   토큰 자리. 복사본은 git 에서 제외
 ├── infra/                서버 테라폼 (예정)
-├── tests/                지울 파일 판정, md 자르기, clone 기록과 git 동작 테스트
+├── tests/                지울 파일 판정, md 자르기, 증분 색인, clone 기록과 git 동작 테스트
 └── docs/
     ├── architecture.svg          시스템 구조도. README 의 "시스템 구조"에 보인다
     ├── usage.md                  사용 가이드. 연결·질문·답하는 방식·문제 해결

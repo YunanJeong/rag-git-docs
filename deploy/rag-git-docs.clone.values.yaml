@@ -2,7 +2,7 @@
 
 image:
   repository: docker.wai/yunan/rag-git-docs
-  tag: "0.6.0"
+  tag: "0.6.1"
 
 # 수집·색인과 검색 MCP 서버에 같이 넣는 환경변수. 수집 방식과 문서 위치, Qdrant 별칭을 정한다.
 env:
