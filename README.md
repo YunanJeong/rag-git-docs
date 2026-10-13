@@ -63,6 +63,8 @@ cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml    # 
 helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
+서버 없이 자기 PC 에서 혼자 돌리려면 [로컬에서 돌리기](docs/operations.md#로컬에서-돌리기)를 따른다.
+
 이미지 빌드, values 에 채울 값, 업그레이드, 수집 방식 고르기, 토큰 관리, 로그, 로컬 실행은 [운영 가이드(docs/operations.md)](docs/operations.md)에 있다.
 
 ## 문서

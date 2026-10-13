@@ -5,6 +5,7 @@ indexer.embed 를 여기서도 쓴다. 모델은 기동 때 한 번만 올려 �
 
 네트워크에 열리므로 모든 요청에 사용자별 토큰(Authorization: Bearer <토큰>)을 요구하고, 도구 호출마다 누가 불렀는지 로그에 남긴다.
 토큰은 SERVE_TOKEN 에 '이름:토큰' 을 쉼표로 이어 넣는다.
+AUTH_MODE=none 은 자기 PC 에서만 쓰는 로컬 실행용이라 인증이 없고, SERVE_HOST 가 127.0.0.1 일 때만 뜬다.
 
 COLLECT_MODE=clone 이면 DOCS_DIR 의 clone 을 읽는 코드 도구(search_code, read_code, code_history)를 함께 노출한다.
 """
@@ -29,6 +30,12 @@ if MODE not in ("api", "clone"):
     sys.exit(f"COLLECT_MODE 는 api 또는 clone 이다: {MODE}")
 if MODE == "clone" and not os.environ.get("DOCS_DIR"):
     sys.exit("COLLECT_MODE=clone 이면 clone 이 있는 DOCS_DIR 이 필요하다")
+AUTH_MODE = os.environ.get("AUTH_MODE", "token")
+if AUTH_MODE not in ("token", "none"):
+    sys.exit(f"AUTH_MODE 는 token 또는 none 이다: {AUTH_MODE}")
+# 인증이 없으므로 이 PC 밖에서 붙을 수 없을 때만 띄운다
+if AUTH_MODE == "none" and os.environ.get("SERVE_HOST", "0.0.0.0") not in ("127.0.0.1", "localhost", "::1"):
+    sys.exit("AUTH_MODE=none 은 인증이 없어 SERVE_HOST=127.0.0.1 일 때만 뜬다")
 
 embedder = Embedder()
 db = store.client()
@@ -90,16 +97,18 @@ if MODE == "clone":
 
 
 if __name__ == "__main__":
-    raw = os.environ.get("SERVE_TOKEN")
-    if not raw:
-        # 검색 서버 토큰 없이 네트워크에 열리는 일이 없도록 아예 뜨지 않는다
-        sys.exit("SERVE_TOKEN 이 필요하다")
-    try:
-        users = auth.parse_tokens(raw)
-    except ValueError as e:
-        sys.exit(str(e))
+    users: dict[str, str] = {}
+    if AUTH_MODE == "token":
+        raw = os.environ.get("SERVE_TOKEN")
+        if not raw:
+            # 검색 서버 토큰 없이 네트워크에 열리는 일이 없도록 아예 뜨지 않는다
+            sys.exit("SERVE_TOKEN 이 필요하다")
+        try:
+            users = auth.parse_tokens(raw)
+        except ValueError as e:
+            sys.exit(str(e))
     for tool in TOOLS:
-        server.add_tool(auth.audited(tool, users))
+        server.add_tool(auth.audited(tool, users, anonymous="local" if AUTH_MODE == "none" else "-"))
 
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
@@ -112,7 +121,7 @@ if __name__ == "__main__":
         transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False)
     )
     uvicorn.run(
-        auth.require_token(app, users),
+        auth.require_token(app, users) if AUTH_MODE == "token" else app,
         host=os.environ.get("SERVE_HOST", "0.0.0.0"),
         port=8765,
         log_level="warning",

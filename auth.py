@@ -48,14 +48,17 @@ def require_token(app, users: dict[str, str]):
     return guarded
 
 
-def audited(fn, users: dict[str, str]):
-    """도구를 감싸, 부를 때마다 '이름 도구 인자' 를 한 줄 남긴다. 도구 이름·설명·인자 스키마는 원래 함수 그대로다."""
+def audited(fn, users: dict[str, str], anonymous: str = "-"):
+    """도구를 감싸, 부를 때마다 '이름 도구 인자' 를 한 줄 남긴다. 도구 이름·설명·인자 스키마는 원래 함수 그대로다.
+
+    토큰으로 이름을 찾지 못하면 anonymous 를 남긴다. 인증 없는 로컬 실행(AUTH_MODE=none)이면 'local' 이다.
+    """
     sig = inspect.signature(fn, eval_str=True)
 
     @functools.wraps(fn)
     def run(*args, ctx: Context, **kwargs):
         headers = ctx.headers or {}
-        log.info("%s %s %s", who(users, headers.get("authorization", "")) or "-", fn.__name__, kwargs)
+        log.info("%s %s %s", who(users, headers.get("authorization", "")) or anonymous, fn.__name__, kwargs)
         return fn(*args, **kwargs)
 
     # SDK 는 Context 로 표시된 인자에 요청 정보를 넣어 주고, 그 인자는 도구 스키마에서 뺀다

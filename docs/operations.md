@@ -17,7 +17,7 @@ rag-git-docs 를 설치하고 관리하는 사람을 위한 문서다. 쓰는 �
 
 ```bash
 # 이미지. 태그는 values 의 image.tag 와 맞춘다
-docker build -t private.docker.wai/yunan/rag-git-docs:0.6.1 . && docker push private.docker.wai/yunan/rag-git-docs:0.6.1
+docker build -t private.docker.wai/yunan/rag-git-docs:0.6.2 . && docker push private.docker.wai/yunan/rag-git-docs:0.6.2
 
 # 차트 패키지. 차트 템플릿을 고쳤을 때만 Chart.yaml 의 version 을 올리고 다시 만든다
 helm package charts/rag-git-docs -d deploy/packages
@@ -163,13 +163,37 @@ kubectl -n rag logs deploy/rag-git-docs-serve | grep read_code
 
 ## 로컬에서 돌리기
 
-```bash
-cp .env.example .env && set -a && . ./.env && set +a
-uv sync
-docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
-uv run collect.py && uv run index.py && uv run serve.py    # http://localhost:8765/mcp
+자기 PC 에서 혼자 쓸 때의 절차다. `local.env.example` 이 이 용도의 환경변수 예시다. 검색 서버는 인증 없이(`AUTH_MODE=none`) 이 PC 에서만(`127.0.0.1`) 붙을 수 있게 뜬다. Docker 와, clone 방식이면 git 이 있어야 한다.
 
-# clone 방식. DOCS_DIR 은 api 와 다른 곳을 쓴다 (같은 곳이면 수집이 시작하지 않는다). 로컬에 git 이 있어야 한다
-export COLLECT_MODE=clone DOCS_DIR=/var/lib/rag-git-docs/repos
-uv run collect.py && uv run index.py && uv run serve.py
+```bash
+cp local.env.example .env                 # 수집할 곳과 수집용 토큰을 채운다. clone 방식이면 COLLECT_MODE 와 DOCS_DIR 도 바꾼다
+set -a && . ./.env && set +a
+uv sync
+
+# Qdrant. 볼륨에 데이터를 두고, 재부팅해도 다시 뜨고, 이 PC 에서만 열린다
+docker run -d --name qdrant --restart unless-stopped -p 127.0.0.1:6333:6333 -v rag-git-docs-qdrant:/qdrant/storage qdrant/qdrant
+
+# 수집·색인. 바뀐 것이 없으면 collect.py 가 3 으로 끝나므로 && 가 아니라 ; 로 잇는다
+uv run collect.py; uv run index.py
+
+# 검색 서버. 따로 띄워 둔다. 수집·색인을 다시 돌려도 껐다 켤 필요가 없다
+uv run serve.py
 ```
+
+Claude Code 에는 주소만 등록하면 토큰 없이 바로 붙는다.
+
+```bash
+claude mcp add --transport http --scope user git-docs http://127.0.0.1:8765/mcp
+```
+
+문서를 갱신하려면 수집·색인만 다시 돌린다. 바뀐 것만 받고 바뀐 조각만 임베딩하며, 검색 서버는 그대로 둔다.
+
+```bash
+# 수동 갱신. 레포 디렉터리에서
+set -a && . ./.env && set +a && uv run collect.py; uv run index.py
+
+# cron 으로 매일 갱신할 때 (crontab -e). uv 는 which uv 로 나온 전체 경로를 쓴다
+0 9 * * * cd <레포 경로> && (set -a; . ./.env; set +a; <uv 경로> run collect.py; <uv 경로> run index.py) >> "$HOME/rag-git-docs/sync.log" 2>&1
+```
+
+다른 PC 에서도 붙게 하려면 `.env` 의 `AUTH_MODE` 를 `token` 으로, `SERVE_HOST` 를 `0.0.0.0` 으로 바꾸고 `SERVE_TOKEN` 을 채운다. `AUTH_MODE=none` 인 채로 `SERVE_HOST` 를 바꾸면 검색 서버가 뜨지 않는다.
