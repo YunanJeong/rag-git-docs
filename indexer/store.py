@@ -19,7 +19,8 @@ from qdrant_client import QdrantClient, models
 
 # 색인과 검색이 같은 값을 봐야 한다. Qdrant 하나를 여러 릴리스가 같이 쓰면 릴리스마다 다르게 준다.
 ALIAS = os.environ.get("QDRANT_ALIAS", "docs")
-# 모델이나 자르기 설정이 바뀌면 같은 글자도 다른 벡터가 된다. 그때 이 값을 바꾸면 모든 조각의 ID 가 달라져 전부 다시 넣는다.
+# 모델(Dockerfile 의 BGE_M3_REVISION 포함)이나 자르기 설정이 바뀌면 같은 글자도 다른 벡터가 된다.
+# 그때 이 값을 바꾸면 모든 조각의 ID 가 달라져 전부 다시 넣는다.
 VERSION = "bge-m3/passage-2048/heading-v1"
 # 한 번에 임베딩해 넣는 조각 수. 전부를 메모리에 쥐지 않아 조각이 아무리 많아도 메모리가 일정하다.
 BATCH = 256

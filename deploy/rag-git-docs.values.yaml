@@ -2,7 +2,7 @@
 
 image:
   repository: docker.wai/yunan/rag-git-docs
-  tag: "0.6.2"
+  tag: "0.6.3"
 
 # 수집·색인과 검색 MCP 서버에 같이 넣는 환경변수. 수집 방식과 문서 위치, Qdrant 별칭, 인증 방식을 정한다.
 env:
@@ -56,12 +56,18 @@ sync:
     # SOURCE 가 github 일 때 수집할 계정이나 조직 이름.
     GITHUB_OWNER: ""
 
-# 볼륨. existingClaim 에 다른 릴리스의 PVC 이름을 적으면 새로 만들지 않고 그걸 쓴다.
+# 수집한 것과 수집 기록(.manifest.json)을 두는 docs 볼륨.
 persistence:
+  # false 면 볼륨 대신 파드마다 빈 임시 폴더(emptyDir)를 쓴다. 가볍게 띄워 보는 시험용이다.
+  # 파드가 다시 뜨면 받은 것이 사라져 매번 전부 다시 받고, 검색 서버와 수집 파드가 폴더를 나눠 쓰지 못해 clone 의 코드 도구가 동작하지 않는다.
+  # 문서 검색은 색인이 Qdrant 에 있어 그대로 된다.
+  enabled: true
+
+  # 비우면 클러스터 기본 스토리지 클래스를 쓴다.
   storageClass: local-path
+
   # api 면 md 사본이라 작다. clone 이면 리포 저장소 크기 합계에 작업 트리만큼을 더해 잡는다.
   docs:
     size: 70Gi
-    existingClaim: ""
-  model:
+    # 다른 릴리스가 만든 볼륨을 쓰려면 그 PVC 이름을 적는다. 그러면 이 차트는 볼륨을 만들지 않는다.
     existingClaim: ""

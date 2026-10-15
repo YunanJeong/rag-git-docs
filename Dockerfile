@@ -15,12 +15,17 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
+# bge-m3 모델(약 2.3GB)을 이미지에 넣는다. 실행할 때 Hugging Face 에서 받지 않으므로 외부 인터넷 없이 뜨고, 첫 기동도 빠르다.
+# 소스보다 먼저 받아 두어, 소스만 바뀐 재빌드에서는 이 층을 다시 받거나 올리지 않는다. ONNX 판은 쓰지 않아 뺀다.
+# 언제 빌드해도 같은 모델이 들어가도록 커밋을 고정한다. 바꾸면 색인과 벡터가 맞지 않으므로 indexer/store.py 의 VERSION 도 같이 바꾼다.
+ENV BGE_M3_PATH=/opt/bge-m3 BGE_M3_REVISION=5617a9f61b028005a4858fdac845db406aefb181
+RUN .venv/bin/python -c "from huggingface_hub import snapshot_download; snapshot_download('BAAI/bge-m3', revision='$BGE_M3_REVISION', local_dir='$BGE_M3_PATH', ignore_patterns=['onnx/*', 'imgs/*'])"
+
 COPY collect.py collect_api.py collect_clone.py index.py serve.py auth.py ./
 COPY collector collector
 COPY cloner cloner
 COPY indexer indexer
 
-# bge-m3 모델(2.3GB)을 받아 둘 곳이다. 볼륨을 붙여야 실행마다 다시 받지 않는다.
-ENV PATH=/app/.venv/bin:$PATH HF_HOME=/cache/hf
+ENV PATH=/app/.venv/bin:$PATH
 
 CMD ["python", "serve.py"]

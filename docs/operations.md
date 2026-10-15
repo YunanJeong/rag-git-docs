@@ -4,7 +4,7 @@ rag-git-docs 를 설치하고 관리하는 사람을 위한 문서다. 쓰는 �
 
 ## 설치
 
-설치 전에 values 파일(api 릴리스는 `deploy/rag-git-docs.values.yaml`, clone 릴리스는 `deploy/rag-git-docs.clone.values.yaml`)과 비밀값 파일의 다음 값을 환경에 맞게 채운다.
+설치 전에 values 파일 `deploy/rag-git-docs.values.yaml` 과 비밀값 파일의 다음 값을 환경에 맞게 채운다. values 는 리포 전체를 받는 수집 방식(`clone`)으로 되어 있고, 다른 방식(`api`)으로 바꾸는 법은 파일 안 주석과 아래 "수집 방식 고르기" 에 있다.
 
 | 값 | 내용 |
 |---|---|
@@ -17,7 +17,7 @@ rag-git-docs 를 설치하고 관리하는 사람을 위한 문서다. 쓰는 �
 
 ```bash
 # 이미지. 태그는 values 의 image.tag 와 맞춘다
-docker build -t private.docker.wai/yunan/rag-git-docs:0.6.2 . && docker push private.docker.wai/yunan/rag-git-docs:0.6.2
+docker build -t private.docker.wai/yunan/rag-git-docs:0.6.3 . && docker push private.docker.wai/yunan/rag-git-docs:0.6.3
 
 # 차트 패키지. 차트 템플릿을 고쳤을 때만 Chart.yaml 의 version 을 올리고 다시 만든다
 helm package charts/rag-git-docs -d deploy/packages
@@ -27,9 +27,14 @@ helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag --create-namesp
 
 # 앱. 예시 파일을 복사해 비밀값을 채우고 설치할 때 함께 넘긴다 (복사한 파일은 git 에서 제외됨)
 cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml
-helm install rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag \
+helm install rag-git-docs deploy/packages/rag-git-docs-0.4.1.tgz -n rag \
   -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
+
+# 첫 수집·색인. 리포 전체를 이력까지 받으므로 오래 걸린다
+kubectl -n rag create job --from=cronjob/rag-git-docs-sync sync-now
 ```
+
+설치한 뒤에 네임스페이스나 릴리스 이름을 바꾸면 upgrade 가 아니라 새 설치가 되어, 리포와 색인을 처음부터 다시 받는다.
 
 설치가 끝나면 쓰는 사람에게 MCP서버 주소(`http://<노드 주소>:<serve.service.nodePort>/mcp`)와 각자의 토큰을 보안 채널로 주고, [사용 가이드](usage.md)를 안내한다.
 
@@ -38,7 +43,7 @@ helm install rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag \
 차트는 그대로 두고 이미지만 새 태그로 올린 뒤, values 의 `image.tag` 를 바꿔 upgrade 한다.
 
 ```bash
-helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag \
+helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.4.1.tgz -n rag \
   -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
@@ -54,7 +59,7 @@ kubectl -n rag delete job sync-now    # 같은 이름으로 다시 만들려면 
 
 ## 수집 방식 고르기
 
-values 의 `env.COLLECT_MODE` 로 `api` 와 `clone` 중 하나를 고른다. 둘의 차이는 기술보다 **보안과 품질 사이의 선택**이다.
+values 의 `env.COLLECT_MODE` 로 `api` 와 `clone` 중 하나를 고른다. 이 배포는 `clone` 이다. 둘의 차이는 기술보다 **보안과 품질 사이의 선택**이다.
 
 ### `api` — md only. 보안을 우선한다
 
@@ -70,7 +75,7 @@ GitLab·GitHub 의 REST API 로 리포마다 `.md` 파일만 받는다. 코드�
 ### `clone` — 리포 전체. 품질과 관리 편의를 얻는다
 
 리포를 이력까지 통째로 `git clone` 해 두고, 주기적으로 `git fetch` 해 원격과 맞춘다.
-MCP서버에 코드 도구 `search_code`, `read_code`, `code_history` 가 더해진다.
+Vector DB 에 색인하는 것은 api 와 같이 md 뿐이다. 코드는 볼륨에 둔 채로, MCP서버에 더해지는 코드 도구 `search_code`, `read_code`, `code_history` 가 직접 읽는다.
 코드 도구는 문서 검색으로 답이 안 될 때만 쓰도록 MCP서버 지침과 도구 설명에 못박아 두었다. 빠르고 토큰을 적게 쓰는 문서 검색의 장점을 코드 탐색이 잡아먹지 않게 하기 위해서다.
 
 - **답의 품질이 오른다.** "이 설정 키를 실제로 어디서 읽나", "이 동작은 언제 왜 바뀌었나"처럼 문서로 답이 안 되는 질문에 코드와 커밋 이력을 근거로 답한다.
@@ -95,18 +100,8 @@ MCP서버에 코드 도구 `search_code`, `read_code`, `code_history` 가 더해
 | 수집용 `GITHUB_TOKEN` 권한 | 비공개 리포면 Contents 읽기(classic PAT 면 `repo`) | api 와 같다 |
 | `persistence.docs.size` | md 사본이라 작다 | 리포 저장소 크기 합계에 작업 트리만큼을 더해 잡는다 |
 
-### clone 모드로 띄우기
-
-네임스페이스와 릴리스를 나눠 clone 용 values 하나로 설치한다. api 릴리스와 볼륨·Service·Secret·Qdrant 가 따로 생긴다.
-
-```bash
-kubectl create ns rag-clone
-helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag-clone -f deploy/qdrant.clone.values.yaml
-helm install rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
-
-# 첫 수집을 바로 돌린다. 리포 전체를 이력까지 받으므로 오래 걸린다
-kubectl -n rag-clone create job --from=cronjob/rag-git-docs-sync sync-now
-```
+api 로 바꾸려면 values 의 `COLLECT_MODE`·`DOCS_DIR`·`persistence.docs.size` 를 위 표대로 고치고 upgrade 한다. 두 방식은 같은 볼륨의 다른 디렉터리를 쓰므로 되돌리면 각자의 데이터를 이어서 쓴다.
+두 방식을 같은 서버에 함께 띄우려면 values 파일을 복사해 네임스페이스·노드 포트·`QDRANT_ALIAS`·CronJob 시각을 다르게 주고 따로 설치한다.
 
 ## 인증 — 사용자별 토큰
 
@@ -130,11 +125,10 @@ SERVE_TOKEN: "kim:<토큰>,lee:<토큰>,park:<토큰>"
 | 사람 빼기 | 그 항목을 지우고 upgrade 한다. 그 토큰은 바로 401 이 된다 |
 | 토큰 바꾸기·유출 대응 | 그 사람의 토큰만 새로 만들어 바꾸고 upgrade 한다. 본인이 할 일은 [사용 가이드의 연결 관리](usage.md#연결-관리)에 있다 |
 
-upgrade 는 이 파일을 쓰는 릴리스마다 한다. 두 방식을 같이 띄웠다면 둘 다 한다.
+upgrade 는 이 파일을 쓰는 릴리스마다 한다. 다른 수집 방식으로 릴리스를 하나 더 띄웠다면 그쪽도 한다.
 
 ```bash
-helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
-helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
+helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.4.1.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
 토큰이 바뀌면 MCP서버 파드가 저절로 다시 뜨고, 다른 사람의 연결은 그대로다.

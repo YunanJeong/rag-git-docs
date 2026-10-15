@@ -60,7 +60,7 @@ Claude Code 의 `/mcp` 에 Connected 로 보이면 된다.
 helm package charts/rag-git-docs -d deploy/packages
 helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag --create-namespace -f deploy/qdrant.values.yaml
 cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml    # SERVE_TOKEN 과 수집용 토큰을 채운다
-helm install rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
+helm install rag-git-docs deploy/packages/rag-git-docs-0.4.1.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
 이미지 빌드, values 에 채울 값, 업그레이드, 수집 방식 고르기, 토큰 관리, 로그는 [운영 가이드(docs/operations.md)](docs/operations.md)에 있다.
@@ -118,10 +118,8 @@ rag-git-docs/
 │   └── rag-git-docs/     1·2·3 을 띄우는 Helm 차트 소스. 1·2 는 CronJob, 3 은 Deployment. values.yaml 은 기본값
 ├── deploy/               실제 배포 환경에 설치하는 값과 패키지
 │   ├── packages/         설치할 차트 패키지. rag-git-docs 는 helm package 로 만들고, Qdrant 는 공식에서 받는다
-│   ├── qdrant.values.yaml           Qdrant 차트 기본값 위에 덮어쓰는 이 환경의 값
-│   ├── qdrant.clone.values.yaml     clone 모드 릴리스용 Qdrant 의 값. 이 파일 하나로 설치한다
-│   ├── rag-git-docs.values.yaml     rag-git-docs 차트 기본값 위에 덮어쓰는 이 환경의 값
-│   ├── rag-git-docs.clone.values.yaml   clone 모드 릴리스의 값. 이 파일 하나로 설치한다
+│   ├── qdrant.values.yaml           이 배포의 Qdrant 값
+│   ├── rag-git-docs.values.yaml     이 배포의 값. 이 파일 하나로 설치한다. 다른 수집 방식은 주석에 있다
 │   └── rag-git-docs.secret.example.yaml   토큰 자리. 복사본은 git 에서 제외
 ├── infra/                서버 테라폼 (예정)
 ├── tests/                지울 파일 판정, md 자르기, 증분 색인, clone 기록과 git 동작 테스트

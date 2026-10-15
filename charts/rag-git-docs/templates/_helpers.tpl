@@ -50,8 +50,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- .Values.persistence.docs.existingClaim | default (printf "%s-docs" (include "rag.fullname" .)) -}}
 {{- end -}}
 
-{{- define "rag.modelClaim" -}}
-{{- .Values.persistence.model.existingClaim | default (printf "%s-model" (include "rag.fullname" .)) -}}
+{{/* docs 볼륨의 실체. persistence.enabled 가 false 면 파드마다 빈 임시 폴더(emptyDir)다 */}}
+{{- define "rag.docsVolume" -}}
+{{- if .Values.persistence.enabled -}}
+persistentVolumeClaim:
+  claimName: {{ include "rag.docsClaim" . }}
+{{- else -}}
+emptyDir: {}
+{{- end -}}
 {{- end -}}
 
 {{/* values 의 map 을 컨테이너 env 목록으로 바꾼다 */}}

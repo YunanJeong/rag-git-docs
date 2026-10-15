@@ -62,15 +62,9 @@ spec:
               volumeMounts:
                 - name: docs
                   mountPath: /data
-                - name: model
-                  mountPath: /cache/hf
           volumes:
             - name: docs
-              persistentVolumeClaim:
-                claimName: {{ include "rag.docsClaim" . }}
-            - name: model
-              persistentVolumeClaim:
-                claimName: {{ include "rag.modelClaim" . }}
+              {{- include "rag.docsVolume" . | nindent 14 }}
           {{- with .Values.sync.nodeSelector }}
           nodeSelector:
             {{- toYaml . | nindent 12 }}

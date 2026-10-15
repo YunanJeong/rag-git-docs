@@ -6,16 +6,20 @@ region-a1 과 region-a2 처럼 한 글자 다른 식별자는 sparse 만 구별�
 
 from __future__ import annotations
 
+import os
 import threading
 
 from FlagEmbedding import BGEM3FlagModel
 from qdrant_client import models
 
+# 이미지에는 모델이 이 경로에 들어 있어 내려받지 않는다. 없으면(로컬 실행) Hugging Face 에서 받아 캐시에 둔다.
+MODEL = os.environ.get("BGE_M3_PATH", "BAAI/bge-m3")
+
 
 class Embedder:
     def __init__(self) -> None:
         # 기본값 512 토큰이면 긴 한국어 조각의 뒷부분이 잘려 임베딩에서 빠진다.
-        self.model = BGEM3FlagModel("BAAI/bge-m3", passage_max_length=2048)
+        self.model = BGEM3FlagModel(MODEL, passage_max_length=2048)
         # encode 가 호출마다 모델 가중치를 장치로 다시 옮긴다.
         # 두 스레드가 동시에 옮기면 프로세스가 세그폴트로 죽어서, 한 번에 하나만 돌린다.
         self.lock = threading.Lock()
