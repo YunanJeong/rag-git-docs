@@ -12,6 +12,7 @@ rag-git-docs 를 설치하고 관리하는 사람을 위한 문서다. 쓰는 �
 | `sync.env.SOURCE` | 문서를 받아 올 곳. `gitlab` 또는 `github` |
 | `sync.env.GITLAB_URL`, `sync.env.GITLAB_GROUP` | GitLab 이면 GitLab 주소와 수집할 그룹 경로. 하위 그룹까지 수집한다 |
 | `sync.env.GITHUB_OWNER` | GitHub 이면 수집할 계정이나 조직 이름 |
+| `env.AUTH_MODE` | `token`(기본, 사용자별 토큰). 아래 "인증". `none` 은 로컬 실행 전용이라 서버에서는 뜨지 않는다 |
 | 비밀값 파일의 `SERVE_TOKEN` | 팀원별 MCP서버 토큰. 아래 "토큰 관리" |
 | 비밀값 파일의 `GITLAB_TOKEN` 또는 `GITHUB_TOKEN` | 수집용 PAT |
 
@@ -187,7 +188,7 @@ claude mcp add --transport http --scope user git-docs http://127.0.0.1:8765/mcp
 set -a && . ./.env && set +a && uv run collect.py; uv run index.py
 
 # cron 으로 매일 갱신할 때 (crontab -e). uv 는 which uv 로 나온 전체 경로를 쓴다
-0 9 * * * cd <레포 경로> && (set -a; . ./.env; set +a; <uv 경로> run collect.py; <uv 경로> run index.py) >> "$HOME/rag-git-docs/sync.log" 2>&1
+0 9 * * * cd <레포 경로> && (set -a; . ./.env; set +a; <uv 경로> run collect.py; <uv 경로> run index.py) >> "$HOME/.rag-git-docs/sync.log" 2>&1
 ```
 
 다른 PC 에서도 붙게 하려면 `.env` 의 `AUTH_MODE` 를 `token` 으로, `SERVE_HOST` 를 `0.0.0.0` 으로 바꾸고 `SERVE_TOKEN` 을 채운다. `AUTH_MODE=none` 인 채로 `SERVE_HOST` 를 바꾸면 검색 서버가 뜨지 않는다.

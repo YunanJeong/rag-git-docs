@@ -1,7 +1,9 @@
+{{- if eq .Values.env.AUTH_MODE "token" }}
 {{- if and (not .Values.existingSecret) (not .Values.secretEnv.SERVE_TOKEN) }}
-경고: secretEnv.SERVE_TOKEN 이 비어 있다. 검색 서버는 이 토큰 없이는 뜨지 않는다.
+경고: AUTH_MODE=token 인데 secretEnv.SERVE_TOKEN 이 비어 있다. 검색 서버는 이 토큰 없이는 뜨지 않는다.
 값을 채운 values 파일을 helm upgrade 에 -f 로 넘기거나, existingSecret 에 Secret 이름을 적는다.
 {{ end }}
+{{- end }}
 {{- if .Values.serve.enabled }}
 검색 서버: {{ include "rag.fullname" . }}-serve ({{ .Values.serve.service.type }}{{ if eq .Values.serve.service.type "NodePort" }}, 노드 포트 {{ .Values.serve.service.nodePort }}{{ end }})
 {{- end }}

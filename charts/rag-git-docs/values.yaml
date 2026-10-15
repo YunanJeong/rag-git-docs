@@ -118,7 +118,7 @@ sync:
     # GitLab 주소. 사내 설치형이면 그 주소로 바꾼다.
     GITLAB_URL: https://gitlab.com
 
-    # 수집할 GitLab 그룹 경로. 그룹 주소에서 호스트 뒤 부분이다. 예: mycompany/platform
+    # 수집할 GitLab 그룹 경로다. 그룹 주소에서 호스트 뒤 부분이다. 예: mycompany/platform. 하위 그룹까지 수집한다.
     GITLAB_GROUP: ""
 
     # SOURCE 가 github 일 때 수집할 계정이나 조직 이름.

@@ -29,14 +29,14 @@ externalQdrant:
   apiKeySecret:
     name: rag-qdrant-apikey
 
-# 검색 MCP 서버. 같은 서버에 다른 릴리스와 함께 띄우면 노드 포트가 겹치지 않게 한다.
+# 검색 MCP 서버. 같은 서버에 릴리스를 하나 더 띄우면 노드 포트가 겹치지 않게 한다.
 serve:
   enabled: true
   service:
     type: NodePort
     nodePort: 30876
 
-# 수집·색인 CronJob. 같은 서버에 다른 릴리스와 함께 띄우면 자원을 다투지 않게 시각을 엇갈린다.
+# 수집·색인 CronJob. 같은 서버에 릴리스를 하나 더 띄우면 자원을 다투지 않게 시각을 엇갈린다.
 sync:
   enabled: true
   schedule: "0 4 * * *"
@@ -50,7 +50,7 @@ sync:
     # GitLab 주소. 사내 설치형이면 그 주소로 바꾼다.
     GITLAB_URL: https://gitlab.com
 
-    # 수집할 GitLab 그룹 경로. 그룹 주소에서 호스트 뒤 부분이다. 예: mycompany/platform
+    # 수집할 GitLab 그룹 경로다. 그룹 주소에서 호스트 뒤 부분이다. 예: mycompany/platform. 하위 그룹까지 수집한다.
     GITLAB_GROUP: ""
 
     # SOURCE 가 github 일 때 수집할 계정이나 조직 이름.
@@ -63,7 +63,6 @@ persistence:
   # 문서 검색은 색인이 Qdrant 에 있어 그대로 된다.
   enabled: true
 
-  # 비우면 클러스터 기본 스토리지 클래스를 쓴다.
   storageClass: local-path
 
   # api 면 md 사본이라 작다. clone 이면 리포 저장소 크기 합계에 작업 트리만큼을 더해 잡는다.
