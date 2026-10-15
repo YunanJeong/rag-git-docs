@@ -1,3 +1,4 @@
+{{- if .Values.sync.enabled }}
 # collect.py 다음 index.py 를 매일 한 번 돌린다. 수집 방식과 위치는 env 의 COLLECT_MODE, DOCS_DIR 이 정한다.
 apiVersion: batch/v1
 kind: CronJob
@@ -66,10 +67,10 @@ spec:
           volumes:
             - name: docs
               persistentVolumeClaim:
-                claimName: {{ include "rag.fullname" . }}-docs
+                claimName: {{ include "rag.docsClaim" . }}
             - name: model
               persistentVolumeClaim:
-                claimName: {{ include "rag.fullname" . }}-model
+                claimName: {{ include "rag.modelClaim" . }}
           {{- with .Values.sync.nodeSelector }}
           nodeSelector:
             {{- toYaml . | nindent 12 }}
@@ -82,3 +83,4 @@ spec:
           affinity:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+{{- end }}

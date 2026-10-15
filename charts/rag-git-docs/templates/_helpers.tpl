@@ -35,14 +35,23 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{/* 검색 서버와 수집·색인이 함께 쓰는 Qdrant 접속 정보 */}}
 {{- define "rag.qdrantEnv" -}}
 - name: QDRANT_URL
-  value: {{ .Values.qdrant.url | quote }}
-{{- with .Values.qdrant.apiKeySecret.name }}
+  value: {{ .Values.externalQdrant.url | quote }}
+{{- with .Values.externalQdrant.apiKeySecret.name }}
 - name: QDRANT_API_KEY
   valueFrom:
     secretKeyRef:
       name: {{ . }}
-      key: {{ $.Values.qdrant.apiKeySecret.key }}
+      key: {{ $.Values.externalQdrant.apiKeySecret.key }}
 {{- end }}
+{{- end -}}
+
+{{/* 볼륨 이름. existingClaim 을 주면 차트가 만들지 않고 그걸 쓴다 */}}
+{{- define "rag.docsClaim" -}}
+{{- .Values.persistence.docs.existingClaim | default (printf "%s-docs" (include "rag.fullname" .)) -}}
+{{- end -}}
+
+{{- define "rag.modelClaim" -}}
+{{- .Values.persistence.model.existingClaim | default (printf "%s-model" (include "rag.fullname" .)) -}}
 {{- end -}}
 
 {{/* values 의 map 을 컨테이너 env 목록으로 바꾼다 */}}

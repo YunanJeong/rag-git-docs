@@ -27,7 +27,7 @@ helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag --create-namesp
 
 # 앱. 예시 파일을 복사해 비밀값을 채우고 설치할 때 함께 넘긴다 (복사한 파일은 git 에서 제외됨)
 cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml
-helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag \
+helm install rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag \
   -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
@@ -38,7 +38,7 @@ helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag \
 차트는 그대로 두고 이미지만 새 태그로 올린 뒤, values 의 `image.tag` 를 바꿔 upgrade 한다.
 
 ```bash
-helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag \
+helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag \
   -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
@@ -102,7 +102,7 @@ MCP서버에 코드 도구 `search_code`, `read_code`, `code_history` 가 더해
 ```bash
 kubectl create ns rag-clone
 helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag-clone -f deploy/qdrant.clone.values.yaml
-helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
+helm install rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
 
 # 첫 수집을 바로 돌린다. 리포 전체를 이력까지 받으므로 오래 걸린다
 kubectl -n rag-clone create job --from=cronjob/rag-git-docs-sync sync-now
@@ -133,8 +133,8 @@ SERVE_TOKEN: "kim:<토큰>,lee:<토큰>,park:<토큰>"
 upgrade 는 이 파일을 쓰는 릴리스마다 한다. 두 방식을 같이 띄웠다면 둘 다 한다.
 
 ```bash
-helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
-helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
+helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
+helm upgrade rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag-clone -f deploy/rag-git-docs.clone.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
 토큰이 바뀌면 MCP서버 파드가 저절로 다시 뜨고, 다른 사람의 연결은 그대로다.

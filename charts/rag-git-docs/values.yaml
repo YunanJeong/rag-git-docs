@@ -18,17 +18,24 @@ imagePullSecrets: []
 # 수집·색인과 검색 서버에 똑같이 넣는 환경변수다. 비밀이 아닌 것만 둔다. 토큰은 secretEnv 에 둔다.
 # 차트는 이 값의 뜻을 모른다. 해석은 앱이 한다.
 env:
-  # 수집 방식. api(md 만 API 로 받는다) 또는 clone(리포를 이력까지 clone 한다). 고르는 이유는 README 에 있다.
+  # 수집 방식. 어느 쪽이든 Vector DB 에 색인하는 것은 md 뿐이다. 바꾸면 DOCS_DIR 과 persistence.docs.size 도 같이 바꾼다.
+  #   api   : md 만 받는다
+  #   clone : 리포 전체와 git 이력을 받아 둔다. 코드는 색인하지 않고, 코드 도구(search_code, read_code, code_history)가 필요할 때 직접 읽는다
   COLLECT_MODE: api
-  # 수집한 것을 둘 곳이다. docs 볼륨이 /data 에 붙는다.
-  # 두 방식은 같은 디렉터리를 쓸 수 없다. clone 이면 /data/repos 처럼 다른 곳을 적는다.
+
+  # 수집한 것을 두는 볼륨 안의 위치. 두 방식은 같은 위치를 쓰지 못하므로 방식을 바꾸면 이 경로도 바꾼다.
   DOCS_DIR: /data/docs
-  # 검색이 읽는 Qdrant 별칭이다. 첫 색인 때 <별칭>_<시각> 컬렉션을 만들어 걸고, 이후 색인은 바뀐 조각만 그 컬렉션에 고쳐 넣는다.
-  # Qdrant 하나를 여러 릴리스가 같이 쓰면 릴리스마다 다른 값을 준다.
+
+  # Qdrant 에서 문서 조각이 든 컬렉션(테이블에 해당)을 가리키는 별칭. 검색과 색인이 이 이름으로 접근한다.
+  # 첫 색인 때 <별칭>_<시각> 컬렉션을 만들어 건다. Qdrant 하나를 여러 릴리스가 같이 쓰면 서로 다르게 준다.
   QDRANT_ALIAS: docs
 
-# 이 차트는 Qdrant 를 설치하지 않는다. 따로 띄운 Qdrant 에 붙는다.
-qdrant:
+  # MCP서버 인증 방식.
+  #   token : 사람마다 나눠 준 토큰으로 붙는다. secretEnv.SERVE_TOKEN 이 필요하다
+  #   none  : 인증 없음. 로컬 실행 전용이라 서버에서는 뜨지 않는다
+  AUTH_MODE: token
+
+externalQdrant:
   # Qdrant HTTP 주소다.
   url: http://qdrant:6333
   # Qdrant API 키가 든 Secret 이다. name 을 비우면 키 없이 붙는다.
@@ -46,6 +53,8 @@ secretEnv: {}
 
 # 검색 서버(serve.py). Claude Code 가 MCP 로 붙어 문서를 검색한다.
 serve:
+  # false 면 검색 서버(Deployment, Service)를 만들지 않는다.
+  enabled: true
   replicaCount: 1
 
   service:
@@ -88,6 +97,8 @@ serve:
 
 # 수집·색인(CronJob). 정해진 시각에 collect.py 로 리포의 md 를 받고, 이어서 index.py 로 Qdrant 에 넣는다.
 sync:
+  # false 면 수집·색인(CronJob)을 만들지 않는다. 다른 릴리스의 색인을 읽기만 하는 검색 서버를 띄울 때 쓴다.
+  enabled: true
   # cron 형식이다. 기본은 매일 03:00.
   schedule: "0 3 * * *"
   # schedule 을 계산할 시간대다. 예: Asia/Seoul. 비우면 클러스터 시간대를 따르는데, 보통 UTC 다.
@@ -99,13 +110,18 @@ sync:
 
   # 수집·색인에만 넣는 환경변수다. 위의 env 와 함께 들어간다. 토큰은 secretEnv 에 둔다.
   env:
-    # 문서를 받아 올 곳이다. gitlab 또는 github.
+    # 문서를 받아 올 곳.
+    #   gitlab : GITLAB_URL 의 GITLAB_GROUP 아래 리포를 받는다. 하위 그룹까지 받는다
+    #   github : GITHUB_OWNER 계정이나 조직의 리포를 받는다
     SOURCE: gitlab
-    # GitLab 주소다. 사내 설치형이면 그 주소로 바꾼다.
+
+    # GitLab 주소. 사내 설치형이면 그 주소로 바꾼다.
     GITLAB_URL: https://gitlab.com
-    # 수집할 GitLab 그룹 경로다. 그룹 주소에서 호스트 뒤 부분이다. 예: mycompany/platform. 하위 그룹까지 수집한다.
+
+    # 수집할 GitLab 그룹 경로. 그룹 주소에서 호스트 뒤 부분이다. 예: mycompany/platform
     GITLAB_GROUP: ""
-    # SOURCE 가 github 일 때 수집할 계정이나 조직 이름이다.
+
+    # SOURCE 가 github 일 때 수집할 계정이나 조직 이름.
     GITHUB_OWNER: ""
 
   resources:
@@ -130,9 +146,13 @@ persistence:
   # api 면 md 사본이라 작다. clone 이면 리포 저장소 크기 합계에 작업 트리만큼을 더해 잡는다.
   docs:
     size: 5Gi
+    # 다른 릴리스가 만든 볼륨을 쓰려면 그 PVC 이름을 적는다. 그러면 이 차트는 볼륨을 만들지 않는다.
+    existingClaim: ""
   # bge-m3 모델 캐시다. 검색 서버와 수집·색인이 함께 쓴다.
   model:
     size: 5Gi
+    # 다른 릴리스가 만든 볼륨을 쓰려면 그 PVC 이름을 적는다. 그러면 이 차트는 볼륨을 만들지 않는다.
+    existingClaim: ""
 
 podSecurityContext: {}
 securityContext: {}

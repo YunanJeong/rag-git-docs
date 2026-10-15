@@ -1,3 +1,4 @@
+{{- if .Values.serve.enabled }}
 # serve.py 를 계속 띄워 둔다. 죽으면 k8s 가 다시 띄운다.
 apiVersion: apps/v1
 kind: Deployment
@@ -78,10 +79,10 @@ spec:
       volumes:
         - name: model
           persistentVolumeClaim:
-            claimName: {{ include "rag.fullname" . }}-model
+            claimName: {{ include "rag.modelClaim" . }}
         - name: docs
           persistentVolumeClaim:
-            claimName: {{ include "rag.fullname" . }}-docs
+            claimName: {{ include "rag.docsClaim" . }}
       {{- with .Values.serve.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -118,3 +119,4 @@ spec:
       {{- if and (eq .Values.serve.service.type "NodePort") .Values.serve.service.nodePort }}
       nodePort: {{ .Values.serve.service.nodePort }}
       {{- end }}
+{{- end }}

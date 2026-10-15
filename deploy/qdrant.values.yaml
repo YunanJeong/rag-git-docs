@@ -1,4 +1,4 @@
-# api 모드 릴리스용 Qdrant 의 값. 노드 포트만 clone 쪽과 다르다.
+# 이 배포의 Qdrant 값. 공식 Qdrant 차트(deploy/packages/qdrant-*.tgz)에 넘긴다.
 service:
   type: NodePort
   ports:

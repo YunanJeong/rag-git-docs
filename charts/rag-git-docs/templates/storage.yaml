@@ -1,9 +1,10 @@
+{{- if not .Values.persistence.docs.existingClaim }}
 # 수집한 것(api 면 md 사본, clone 이면 리포 clone)과 .manifest.json 을 둔다. 어느 하위 디렉터리를 쓸지는 env 의 DOCS_DIR 이 정한다.
 # 없으면 매번 빈 디렉터리로 시작해서 매일 전부 다시 받는다.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "rag.fullname" . }}-docs
+  name: {{ include "rag.docsClaim" . }}
   labels:
     {{- include "rag.labels" . | nindent 4 }}
   annotations:
@@ -17,13 +18,15 @@ spec:
   resources:
     requests:
       storage: {{ .Values.persistence.docs.size }}
+{{- end }}
+{{- if not .Values.persistence.model.existingClaim }}
 ---
 # bge-m3 모델(2.3GB)을 받아 둔다.
 # 없으면 서버가 뜰 때마다, 색인이 돌 때마다 모델을 새로 받는다.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "rag.fullname" . }}-model
+  name: {{ include "rag.modelClaim" . }}
   labels:
     {{- include "rag.labels" . | nindent 4 }}
   annotations:
@@ -37,6 +40,7 @@ spec:
   resources:
     requests:
       storage: {{ .Values.persistence.model.size }}
+{{- end }}
 {{- if not .Values.existingSecret }}
 ---
 apiVersion: v1

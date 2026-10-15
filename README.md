@@ -60,7 +60,7 @@ Claude Code 의 `/mcp` 에 Connected 로 보이면 된다.
 helm package charts/rag-git-docs -d deploy/packages
 helm install rag-qdrant deploy/packages/qdrant-1.19.1.tgz -n rag --create-namespace -f deploy/qdrant.values.yaml
 cp deploy/rag-git-docs.secret.example.yaml deploy/rag-git-docs.secret.yaml    # SERVE_TOKEN 과 수집용 토큰을 채운다
-helm install rag-git-docs deploy/packages/rag-git-docs-0.3.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
+helm install rag-git-docs deploy/packages/rag-git-docs-0.4.0.tgz -n rag -f deploy/rag-git-docs.values.yaml -f deploy/rag-git-docs.secret.yaml
 ```
 
 이미지 빌드, values 에 채울 값, 업그레이드, 수집 방식 고르기, 토큰 관리, 로그는 [운영 가이드(docs/operations.md)](docs/operations.md)에 있다.
