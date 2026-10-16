@@ -1,8 +1,8 @@
 # 개발용 검색 MCP 서버. 같은 네임스페이스의 다른 릴리스가 수집·색인해 둔 Qdrant 와 리포 볼륨을 그대로 읽어,
 # 같은 내용을 다른 인증 방식(사용자별 토큰)과 다른 포트로 보게 한다. 수집·색인은 하지 않고, 볼륨은 읽기 전용으로만 붙인다.
 #
-# helm install rag-git-docs-dev deploy/packages/rag-git-docs-0.4.1.tgz -n rag-clone \
-#   -f deploy/rag-git-docs.dev.values.yaml -f deploy/rag-git-docs.secret.yaml
+# 설치: helm install rag-git-docs-dev deploy/packages/rag-git-docs-0.4.1.tgz -n rag-clone -f deploy/rag-git-docs.dev.values.yaml -f deploy/rag-git-docs.secret.yaml
+# 등록: claude mcp add --transport http --scope user git-docs-dev http://<노드 주소>:30878/mcp --header "Authorization: Bearer $GIT_DOCS_TOKEN"
 
 image:
   repository: docker.wai/yunan/rag-git-docs
