@@ -199,7 +199,7 @@ set -a && . ./.env && set +a && uv run collect.py; uv run index.py
 ```bash
 pkill -f serve.py                                              # 검색 서버 끄기
 docker rm -f qdrant && docker volume rm rag-git-docs-qdrant    # Qdrant 와 색인 삭제
-rm -rf "$HOME/.rag-git-docs"                                   # 수집한 것과 로그 삭제
+rm -rf "$HOME/.rag-git-docs"                                   # 수집한 것과 로그 삭제. 재사용시 남겨 둔다
 rm -rf "$HOME/.cache/huggingface/hub/models--BAAI--bge-m3"     # 받아 둔 모델 삭제
 claude mcp remove git-docs-local                               # Claude Code 등록 해제. cron 을 걸었으면 crontab -e 로 그 줄도 지운다
 ```
