@@ -65,13 +65,10 @@ serve:
     nodePort: ""
     annotations: {}
 
+  # 기본값은 모델(bge-m3, 약 2.5GB)이 메모리에 상주하는 데 드는 하한만 둔다. CPU 와 limits 는 배포 values 에서 정한다.
   resources:
-    # bge-m3 를 올리면 약 2.5GB 를 쓴다.
     requests:
-      cpu: 500m
       memory: 3Gi
-    limits:
-      memory: 4Gi
 
   # 모델을 메모리에 올린 뒤에야 포트를 열므로, 포트가 열리면 검색할 준비가 된 것이다.
   # 모델(2.3GB)은 이미지에 들어 있어 내려받지 않지만, 올리는 데 시간이 걸려 startupProbe 를 넉넉히 준다.
@@ -124,13 +121,10 @@ sync:
     # SOURCE 가 github 일 때 수집할 계정이나 조직 이름.
     GITHUB_OWNER: ""
 
+  # 기본값은 모델(bge-m3, 약 2.5GB)을 올려 임베딩하는 데 드는 하한만 둔다. CPU 와 limits 는 배포 values 에서 정한다.
   resources:
-    # 색인할 때 모델과 조각 배치를 함께 올린다. 검색 서버보다 넉넉히 준다.
     requests:
-      cpu: "1"
       memory: 3Gi
-    limits:
-      memory: 6Gi
 
   podAnnotations: {}
   nodeSelector: {}

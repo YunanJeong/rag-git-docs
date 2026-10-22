@@ -24,6 +24,11 @@ serve:
   service:
     type: NodePort
     nodePort: 30878
+  resources:
+    requests:
+      memory: 3Gi
+    limits:
+      memory: 4Gi
 
 sync:
   enabled: false

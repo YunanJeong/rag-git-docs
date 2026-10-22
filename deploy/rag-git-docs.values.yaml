@@ -35,6 +35,12 @@ serve:
   service:
     type: NodePort
     nodePort: 30876
+  resources:
+    requests:
+      cpu: 500m
+      memory: 3Gi
+    limits:
+      memory: 4Gi
 
 # 수집·색인 CronJob. 같은 서버에 릴리스를 하나 더 띄우면 자원을 다투지 않게 시각을 엇갈린다.
 sync:
@@ -55,6 +61,12 @@ sync:
 
     # SOURCE 가 github 일 때 수집할 계정이나 조직 이름.
     GITHUB_OWNER: ""
+  resources:
+    requests:
+      cpu: "1"
+      memory: 3Gi
+    limits:
+      memory: 6Gi
 
 # 수집한 것과 수집 기록(.manifest.json)을 두는 docs 볼륨.
 persistence:
