@@ -172,13 +172,14 @@ docker run -d --name qdrant --restart unless-stopped -p 127.0.0.1:6333:6333 -v r
 uv run collect.py; uv run index.py
 
 # 검색 서버. 따로 띄워 둔다. 수집·색인을 다시 돌려도 껐다 켤 필요가 없다
-uv run serve.py
+uv run serve.py                                                     # 이 터미널을 닫으면 꺼진다. 끄기는 Ctrl+C
+nohup uv run serve.py > "$HOME/.rag-git-docs/serve.log" 2>&1 &      # 터미널을 닫아도 계속 띄울 때. 끄기는 pkill -f serve.py
 ```
 
 Claude Code 에는 주소만 등록하면 토큰 없이 바로 붙는다.
 
 ```bash
-claude mcp add --transport http --scope user git-docs http://127.0.0.1:8765/mcp
+claude mcp add --transport http --scope user git-docs-local http://127.0.0.1:8765/mcp
 ```
 
 문서를 갱신하려면 수집·색인만 다시 돌린다. 바뀐 것만 받고 바뀐 조각만 임베딩하며, 검색 서버는 그대로 둔다.
@@ -192,3 +193,13 @@ set -a && . ./.env && set +a && uv run collect.py; uv run index.py
 ```
 
 다른 PC 에서도 붙게 하려면 `.env` 의 `AUTH_MODE` 를 `token` 으로, `SERVE_HOST` 를 `0.0.0.0` 으로 바꾸고 `SERVE_TOKEN` 을 채운다. `AUTH_MODE=none` 인 채로 `SERVE_HOST` 를 바꾸면 검색 서버가 뜨지 않는다.
+
+끄고 지우려면 아래를 차례로 한다.
+
+```bash
+pkill -f serve.py                                              # 검색 서버 끄기
+docker rm -f qdrant && docker volume rm rag-git-docs-qdrant    # Qdrant 와 색인 삭제
+rm -rf "$HOME/.rag-git-docs"                                   # 수집한 것과 로그 삭제
+rm -rf "$HOME/.cache/huggingface/hub/models--BAAI--bge-m3"     # 받아 둔 모델 삭제
+claude mcp remove git-docs-local                               # Claude Code 등록 해제. cron 을 걸었으면 crontab -e 로 그 줄도 지운다
+```
